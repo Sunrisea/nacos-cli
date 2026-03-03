@@ -103,12 +103,14 @@ func (c *NacosClient) login() error {
 	form := map[string]string{"username": c.Username, "password": c.Password}
 	isLocal := c.isLocalAddr()
 
+	// Try v3 first if not already determined to use v1
 	tryV3 := c.authLoginVersion == "" || c.authLoginVersion == "v3"
 	if tryV3 {
 		u := fmt.Sprintf("http://%s/nacos/v3/auth/user/login", c.ServerAddr)
 		resp, err := c.httpClient.R().SetFormData(form).Post(u)
 		if resp != nil && resp.StatusCode() == 200 && c.applyLoginResponse(resp.Body()) {
 			c.authLoginVersion = "v3"
+			return nil // v3 succeeded, no need to try v1
 		} else if !isLocal {
 			if err != nil {
 				fmt.Printf("v3 login failed: %v\n", err)
@@ -118,10 +120,12 @@ func (c *NacosClient) login() error {
 		}
 	}
 
+	// Fall back to v1 only if v3 failed or we're already using v1
 	u := fmt.Sprintf("http://%s/nacos/v1/auth/login", c.ServerAddr)
 	resp, err := c.httpClient.R().SetFormData(form).Post(u)
 	if resp != nil && resp.StatusCode() == 200 && c.applyLoginResponse(resp.Body()) {
 		c.authLoginVersion = "v1"
+		return nil
 	} else if !isLocal {
 		if err != nil {
 			fmt.Printf("v1 login failed: %v\n", err)
