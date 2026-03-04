@@ -297,6 +297,11 @@ func (s *SkillService) UploadSkill(skillPath string) error {
 
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
+	// Add authentication header
+	if s.client.AccessToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.client.AccessToken))
+	}
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
