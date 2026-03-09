@@ -331,25 +331,29 @@ func (c *NacosClient) listConfigsV1(dataID, groupName, namespace string, pageNo,
 	return &configList, nil
 }
 
-// GetConfig retrieves a specific configuration
+// GetConfig retrieves a specific configuration using v3 client API
 func (c *NacosClient) GetConfig(dataID, group string) (string, error) {
 	if err := c.ensureTokenValid(); err != nil {
 		return "", err
 	}
+
+	ns := c.Namespace
+	if ns == "public" {
+		ns = ""
+	}
+
 	params := url.Values{}
 	params.Set("dataId", dataID)
-	params.Set("group", group)
-
-	if c.Namespace != "" {
-		params.Set("tenant", c.Namespace)
+	params.Set("groupName", group)
+	if ns != "" {
+		params.Set("namespaceId", ns)
 	}
 
-	if c.AuthType == AuthTypeNacos && c.AccessToken != "" {
-		params.Set("accessToken", c.AccessToken)
-	}
-
-	apiURL := fmt.Sprintf("http://%s/nacos/v1/cs/configs", c.ServerAddr)
+	apiURL := fmt.Sprintf("http://%s/nacos/v3/client/cs/config", c.ServerAddr)
 	req := c.httpClient.R().SetQueryString(params.Encode())
+	if c.AuthType == AuthTypeNacos && c.AccessToken != "" {
+		req.SetHeader("Authorization", fmt.Sprintf("Bearer %s", c.AccessToken))
+	}
 	c.setSpasHeaders(req, c.Namespace, group)
 	resp, err := req.Get(apiURL)
 
@@ -358,10 +362,31 @@ func (c *NacosClient) GetConfig(dataID, group string) (string, error) {
 	}
 
 	if resp.StatusCode() != 200 {
-		return "", fmt.Errorf("get config failed: status=%d", resp.StatusCode())
+		return "", fmt.Errorf("get config failed: status=%d, body=%s", resp.StatusCode(), string(resp.Body()))
 	}
 
-	return string(resp.Body()), nil
+	// Parse v3 response
+	var v3Resp V3Response
+	if err := json.Unmarshal(resp.Body(), &v3Resp); err != nil {
+		// If not JSON, return raw content (for backward compatibility)
+		return string(resp.Body()), nil
+	}
+	if v3Resp.Code != 0 {
+		return "", fmt.Errorf("get config failed: code=%d, message=%s", v3Resp.Code, v3Resp.Message)
+	}
+
+	// Parse config from data
+	var config Config
+	if err := json.Unmarshal(v3Resp.Data, &config); err != nil {
+		// Try to return raw data as string
+		var rawContent string
+		if err := json.Unmarshal(v3Resp.Data, &rawContent); err != nil {
+			return string(v3Resp.Data), nil
+		}
+		return rawContent, nil
+	}
+
+	return config.Content, nil
 }
 
 // PublishConfig publishes a configuration

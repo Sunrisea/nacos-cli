@@ -7,7 +7,7 @@ BINARY_NAME=nacos-cli
 BUILD_DIR=build
 
 # Version
-VERSION?=0.0.7
+VERSION?=0.0.8
 
 # Go parameters
 GOCMD=go

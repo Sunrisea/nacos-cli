@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/nov11/nacos-cli/internal/client"
 	"github.com/nov11/nacos-cli/internal/help"
@@ -28,6 +29,17 @@ var getSkillCmd = &cobra.Command{
 			homeDir, err := os.UserHomeDir()
 			checkError(err)
 			getSkillOutput = filepath.Join(homeDir, ".skills")
+		} else {
+			// Expand ~ to home directory
+			if strings.HasPrefix(getSkillOutput, "~/") {
+				homeDir, err := os.UserHomeDir()
+				checkError(err)
+				getSkillOutput = filepath.Join(homeDir, getSkillOutput[2:])
+			} else if getSkillOutput == "~" {
+				homeDir, err := os.UserHomeDir()
+				checkError(err)
+				getSkillOutput = homeDir
+			}
 		}
 
 		// Create Nacos client

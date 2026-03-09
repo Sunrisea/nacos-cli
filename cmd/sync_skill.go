@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/nov11/nacos-cli/internal/client"
@@ -57,6 +59,19 @@ var syncSkillCmd = &cobra.Command{
 			os.Exit(1)
 		} else {
 			skillNames = args
+		}
+
+		// Expand ~ to home directory in syncOutputDir
+		if syncOutputDir != "" {
+			if strings.HasPrefix(syncOutputDir, "~/") {
+				homeDir, err := os.UserHomeDir()
+				checkError(err)
+				syncOutputDir = filepath.Join(homeDir, syncOutputDir[2:])
+			} else if syncOutputDir == "~" {
+				homeDir, err := os.UserHomeDir()
+				checkError(err)
+				syncOutputDir = homeDir
+			}
 		}
 
 		// Create Nacos client
