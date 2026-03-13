@@ -7,7 +7,7 @@ const os = require('os');
 
 // Fixed nacos-cli binary version
 // npm package version is independent from binary version
-const VERSION = '0.0.8';
+const VERSION = '0.0.11';
 
 // Detect platform and architecture
 function getBinaryName() {

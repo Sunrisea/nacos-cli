@@ -14,6 +14,22 @@ A powerful command-line tool for managing Nacos configuration center and AI skil
 
 ## Installation
 
+### npm / npx
+
+Use `npx` to run directly without installation:
+
+```bash
+npx @nacos-group/cli --help
+npx @nacos-group/cli skill-list --host 127.0.0.1 --port 8848 -u nacos -p nacos
+```
+
+Or install globally via npm:
+
+```bash
+npm install -g @nacos-group/cli
+nacos-cli --help
+```
+
 ### Download Binary
 
 Download the latest release from [GitHub Releases](https://github.com/yourusername/nacos-cli/releases).
