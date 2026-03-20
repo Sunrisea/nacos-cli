@@ -17,6 +17,7 @@ import (
 const (
 	AuthTypeNacos  = "nacos"  // Username/password authentication
 	AuthTypeAliyun = "aliyun" // AccessKey/SecretKey authentication
+	AuthTypeToken  = "token"  // Pre-issued access token (no login required)
 )
 
 // NacosClient represents a Nacos API client
@@ -58,13 +59,16 @@ type V3Response struct {
 	Data    json.RawMessage `json:"data"`
 }
 
-// NewNacosClient creates a new Nacos client with automatic authentication
-func NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey string) *NacosClient {
+// NewNacosClient creates a new Nacos client with automatic authentication.
+// If token is non-empty, it is used directly as the Bearer token and no login request is made.
+func NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, token string) *NacosClient {
 	if namespace == "" {
 		namespace = "public"
 	}
 	if authType == "" {
-		if accessKey != "" && secretKey != "" {
+		if token != "" {
+			authType = AuthTypeToken
+		} else if accessKey != "" && secretKey != "" {
 			authType = AuthTypeAliyun
 		} else {
 			authType = AuthTypeNacos
@@ -72,14 +76,20 @@ func NewNacosClient(serverAddr, namespace, authType, username, password, accessK
 	}
 
 	c := &NacosClient{
-		ServerAddr: serverAddr,
-		Namespace:  namespace,
-		AuthType:   authType,
-		Username:   username,
-		Password:   password,
-		AccessKey:  accessKey,
-		SecretKey:  secretKey,
-		httpClient: resty.New(),
+		ServerAddr:  serverAddr,
+		Namespace:   namespace,
+		AuthType:    authType,
+		Username:    username,
+		Password:    password,
+		AccessKey:   accessKey,
+		SecretKey:   secretKey,
+		AccessToken: token,
+		httpClient:  resty.New(),
+	}
+
+	// If a token is provided directly, skip login entirely.
+	if token != "" {
+		return c
 	}
 
 	if c.AuthType == AuthTypeNacos {
@@ -178,6 +188,10 @@ func (c *NacosClient) applyLoginFromMap(m map[string]interface{}) bool {
 
 // ensureTokenValid ensures the access token is valid, refreshing if necessary
 func (c *NacosClient) ensureTokenValid() error {
+	// Token auth: user-supplied token, no refresh
+	if c.AuthType == AuthTypeToken {
+		return nil
+	}
 	if c.AuthType != AuthTypeNacos {
 		return nil
 	}

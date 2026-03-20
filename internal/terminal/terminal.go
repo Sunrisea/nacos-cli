@@ -45,11 +45,7 @@ func completer() *readline.PrefixCompleter {
 			readline.PcItem("--help"),
 			readline.PcItem("-h"),
 		),
-		readline.PcItem("skill-sync",
-			readline.PcItem("--help"),
-			readline.PcItem("-h"),
-		),
-		readline.PcItem("skill-upload",
+		readline.PcItem("skill-publish",
 			readline.PcItem("--help"),
 			readline.PcItem("-h"),
 			readline.PcItem("--all"),
@@ -161,19 +157,15 @@ func (t *Terminal) handleCommand(input string) {
 		} else {
 			t.getSkill(args)
 		}
-	case "skill-upload":
+	case "skill-publish":
 		if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
-			t.showSkillUploadHelp()
+			t.showSkillPublishHelp()
 		} else {
 			t.uploadSkill(args)
 		}
 	case "skill-sync":
-		if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
-			t.showSkillSyncHelp()
-		} else {
-			fmt.Println("\033[33mskill-sync is not supported in terminal mode\033[0m")
-			fmt.Println("\033[90mUse CLI mode:\033[0m nacos-cli skill-sync <skillName>")
-		}
+		fmt.Println("\033[33mskill-sync has been removed.\033[0m")
+		fmt.Println("\033[90mUse 'skill-get' to download skills.\033[0m")
 	case "config-list":
 		if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
 			t.showConfigListHelp()
@@ -216,10 +208,9 @@ func (t *Terminal) showHelp() {
 	fmt.Println("\033[1;33mSkill Management\033[0m")
 	fmt.Printf("\033[32m%-20s\033[0m %-40s %-30s\n", "skill-list", "List all skills", "skill-list [options]")
 	fmt.Printf("\033[32m%-20s\033[0m %-40s %-30s\n", "", "Options: --name, --page, --size", "")
-	fmt.Printf("\033[32m%-20s\033[0m %-40s %-30s\n", "skill-get", "Download a skill to ~/.skills", "skill-get <name>")
-	fmt.Printf("\033[32m%-20s\033[0m %-40s %-30s\n", "skill-sync", "Sync skill with Nacos (CLI only)", "skill-sync <name> (CLI mode)")
-	fmt.Printf("\033[32m%-20s\033[0m %-40s %-30s\n", "skill-upload", "Upload a skill from local", "skill-upload <path>")
-	fmt.Printf("\033[32m%-20s\033[0m %-40s %-30s\n", "", "Upload all skills in directory", "skill-upload --all <folder>")
+	fmt.Printf("\033[32m%-20s\033[0m %-40s %-30s\n", "skill-get", "Download a skill to ~/.skills", "skill-get <name> [--version v1] [--label stable]")
+	fmt.Printf("\033[32m%-20s\033[0m %-40s %-30s\n", "skill-publish", "Publish a skill from local", "skill-publish <path>")
+	fmt.Printf("\033[32m%-20s\033[0m %-40s %-30s\n", "", "Publish all skills in directory", "skill-publish --all <folder>")
 	fmt.Println()
 
 	// Configuration Management
@@ -379,7 +370,7 @@ func (t *Terminal) getSkill(args []string) {
 		}
 		fmt.Printf("\033[90mDownloading skill: \033[33m%s\033[90m...\033[0m\n", skillName)
 
-		err = t.skillService.GetSkill(skillName, outputDir)
+		err = t.skillService.GetSkill(skillName, outputDir, "", "")
 		if err != nil {
 			fmt.Printf("\033[31mError:\033[0m failed to download skill '%s': %v\n", skillName, err)
 			failCount++
@@ -762,8 +753,8 @@ func (t *Terminal) showSkillGetHelp() {
 	help.SkillGet.FormatForTerminal()
 }
 
-func (t *Terminal) showSkillUploadHelp() {
-	help.SkillUpload.FormatForTerminal()
+func (t *Terminal) showSkillPublishHelp() {
+	help.SkillPublish.FormatForTerminal()
 }
 
 func (t *Terminal) showConfigListHelp() {
@@ -779,7 +770,8 @@ func (t *Terminal) showConfigSetHelp() {
 }
 
 func (t *Terminal) showSkillSyncHelp() {
-	help.SkillSync.FormatForTerminal()
+	fmt.Println("\033[33mskill-sync has been removed.\033[0m")
+	fmt.Println("\033[90mUse 'skill-get' to download skills.\033[0m")
 }
 
 // truncateDesc truncates description to maxLen and appends ...... if needed

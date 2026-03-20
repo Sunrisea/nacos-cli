@@ -18,7 +18,7 @@ var getConfigCmd = &cobra.Command{
 		group := args[1]
 
 		// Create Nacos client
-		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey)
+		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, token)
 
 		// Get config
 		fmt.Printf("Fetching config: %s (%s)...\n\n", dataID, group)

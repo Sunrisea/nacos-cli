@@ -12,7 +12,7 @@ var interactiveCmd = &cobra.Command{
 	Long:  `Start an interactive terminal for managing Nacos configurations and skills`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create Nacos client
-		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey)
+		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, token)
 
 		// Create and start terminal
 		term := terminal.NewTerminal(nacosClient)

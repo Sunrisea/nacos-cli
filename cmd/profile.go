@@ -99,6 +99,7 @@ Examples:
 				cfg.Password,
 				cfg.AccessKey,
 				cfg.SecretKey,
+				cfg.Token,
 			)
 			term := terminal.NewTerminal(nacosClient)
 			if err := term.Start(); err != nil {

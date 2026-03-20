@@ -37,38 +37,48 @@ var (
 
 	SkillGet = CommandHelp{
 		Command:     "skill-get",
-		Description: "Download a skill from Nacos to local ~/.skills directory.",
+		Description: "Download a skill from Nacos to local directory via the Client Skill API.",
 		Parameters: []string{
-			"skillName       Required. The name of the skill to download",
+			"skillName...    Required. One or more skill names to download",
+			"-o, --output    Output directory (default: ~/.skills)",
+			"--version       Specific version to download (e.g. v1, v2)",
+			"--label         Route label to resolve version (e.g. latest, stable)",
 		},
 		Examples: []string{
-			"# Download a skill",
+			"# Download the latest version of a skill",
 			"skill-get skill-creator",
 			"",
-			"# Download will create ~/.skills/skill-creator/ with:",
-			"#   - SKILL.md (documentation)",
-			"#   - scripts/ (script files)",
-			"#   - references/ (reference documents)",
+			"# Download a specific version",
+			"skill-get skill-creator --version v2",
+			"",
+			"# Download via label",
+			"skill-get skill-creator --label stable",
+			"",
+			"# Download to a custom directory",
+			"skill-get skill-creator -o ~/my-skills",
+			"",
+			"# Download multiple skills",
+			"skill-get skill-creator skill-analyzer",
 		},
 	}
 
-	SkillUpload = CommandHelp{
-		Command:     "skill-upload",
-		Description: "Upload a skill directory to Nacos as a ZIP file.",
+	SkillPublish = CommandHelp{
+		Command:     "skill-publish",
+		Description: "Publish a skill to Nacos by uploading it as a ZIP file (creates a draft version).\nReview and go-online operations should be done via the Nacos console.",
 		Parameters: []string{
 			"skillPath       Required. Path to the skill directory",
-			"--all           Upload all skills in the specified directory",
+			"--all           Publish all skills in the specified directory",
 		},
 		Examples: []string{
-			"# Upload a single skill",
-			"skill-upload ./my-skill",
+			"# Publish a single skill",
+			"skill-publish ./my-skill",
 			"",
-			"# Upload all skills in a directory",
-			"skill-upload --all ./skills-folder",
+			"# Publish all skills in a directory",
+			"skill-publish --all ./skills-folder",
 			"",
 			"Note:",
 			"  - Skill directory must contain SKILL.md",
-			"  - Skill names: letters, underscores (_), hyphens (-) only",
+			"  - After publishing, use the Nacos console to review and go online",
 		},
 	}
 
@@ -134,24 +144,9 @@ var (
 
 	SkillSync = CommandHelp{
 		Command:     "skill-sync",
-		Description: "Synchronize skills with Nacos (real-time updates).",
-		Parameters: []string{
-			"skillName...    Optional. One or more skill names to synchronize",
-			"--all           Synchronize all skills",
-		},
-		Examples: []string{
-			"# Sync a single skill",
-			"skill-sync skill-creator",
-			"",
-			"# Sync multiple skills",
-			"skill-sync skill-creator skill-analyzer skill-formatter",
-			"",
-			"# Sync all skills",
-			"skill-sync --all",
-			"",
-			"# Skills will be downloaded to ~/.skills/",
-			"# Press Ctrl+C to stop synchronization",
-		},
+		Description: "(Removed) Skill sync is no longer supported.",
+		Parameters:  []string{},
+		Examples:    []string{},
 	}
 )
 

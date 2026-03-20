@@ -22,9 +22,10 @@ const (
 type Config struct {
 	Host      string `yaml:"host"`
 	Port      int    `yaml:"port"`
-	AuthType  string `yaml:"authType"` // nacos | aliyun
+	AuthType  string `yaml:"authType"` // nacos | aliyun | token
 	Username  string `yaml:"username"`
 	Password  string `yaml:"password"`
+	Token     string `yaml:"token"`     // Pre-issued access token (skips username/password login)
 	AccessKey string `yaml:"accessKey"` // Aliyun AK（AuthType=aliyun 时使用）
 	SecretKey string `yaml:"secretKey"` // Aliyun SK
 	Namespace string `yaml:"namespace"`
@@ -126,6 +127,11 @@ func (c *Config) IsComplete() bool {
 		return false
 	}
 
+	// Token auth: only token is needed
+	if c.Token != "" {
+		return true
+	}
+
 	// Check based on auth type
 	authType := strings.ToLower(c.AuthType)
 	if authType == "aliyun" {
@@ -143,6 +149,11 @@ func (c *Config) GetMissingFields() []string {
 
 	if c.Host == "" {
 		missing = append(missing, "host")
+	}
+
+	// Token auth: no other fields required
+	if c.Token != "" {
+		return missing
 	}
 
 	authType := strings.ToLower(c.AuthType)
@@ -279,26 +290,23 @@ func (c *Config) PromptForMissingFields() error {
 	} else {
 		// Nacos auth
 		if c.Username == "" {
-			fmt.Print("Enter username [nacos]: ")
+			fmt.Print("Enter username: ")
 			input, err := reader.ReadString('\n')
 			if err != nil {
 				return fmt.Errorf("failed to read username: %w", err)
 			}
-			input = strings.TrimSpace(input)
-			if input == "" {
-				c.Username = "nacos"
-			} else {
-				c.Username = input
+			c.Username = strings.TrimSpace(input)
+			if c.Username == "" {
+				return fmt.Errorf("username is required")
 			}
 		}
 		if c.Password == "" {
-			fmt.Print("Enter password [nacos]: ")
+			fmt.Print("Enter password: ")
 			password := readPassword(reader)
 			if password == "" {
-				c.Password = "nacos"
-			} else {
-				c.Password = password
+				return fmt.Errorf("password is required")
 			}
+			c.Password = password
 		}
 	}
 
@@ -494,7 +502,7 @@ func (c *Config) PromptForUpdate() error {
 		if currentUser != "" {
 			fmt.Printf("Enter username [%s]: ", currentUser)
 		} else {
-			fmt.Print("Enter username [nacos]: ")
+			fmt.Print("Enter username: ")
 		}
 		input, err = reader.ReadString('\n')
 		if err != nil {
@@ -503,21 +511,23 @@ func (c *Config) PromptForUpdate() error {
 		input = strings.TrimSpace(input)
 		if input != "" {
 			c.Username = input
-		} else if c.Username == "" {
-			c.Username = "nacos"
+		}
+		if c.Username == "" {
+			return fmt.Errorf("username is required")
 		}
 
 		// Password
 		if c.Password != "" {
 			fmt.Print("Enter password [******] (press Enter to keep current): ")
 		} else {
-			fmt.Print("Enter password [nacos]: ")
+			fmt.Print("Enter password: ")
 		}
 		newPwd := readPassword(reader)
 		if newPwd != "" {
 			c.Password = newPwd
-		} else if c.Password == "" {
-			c.Password = "nacos"
+		}
+		if c.Password == "" {
+			return fmt.Errorf("password is required")
 		}
 	}
 

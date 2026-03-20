@@ -21,7 +21,7 @@ var listConfigCmd = &cobra.Command{
 	Long:  help.ConfigList.FormatForCLI("nacos-cli"),
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create Nacos client
-		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey)
+		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, token)
 
 		// List configs
 		configs, err := nacosClient.ListConfigs(configListDataID, configListGroup, "", configListPage, configListSize)

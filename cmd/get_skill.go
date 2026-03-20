@@ -13,7 +13,9 @@ import (
 )
 
 var (
-	getSkillOutput string
+	getSkillOutput  string
+	getSkillVersion string
+	getSkillLabel   string
 )
 
 var getSkillCmd = &cobra.Command{
@@ -43,7 +45,7 @@ var getSkillCmd = &cobra.Command{
 		}
 
 		// Create Nacos client
-		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey)
+		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, token)
 
 		// Create skill service
 		skillService := skill.NewSkillService(nacosClient)
@@ -58,7 +60,7 @@ var getSkillCmd = &cobra.Command{
 				fmt.Printf("\n[%d/%d] ", i+1, len(skillNames))
 			}
 			fmt.Printf("Fetching skill: %s...\n", skillName)
-			err := skillService.GetSkill(skillName, getSkillOutput)
+			err := skillService.GetSkill(skillName, getSkillOutput, getSkillVersion, getSkillLabel)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: failed to download skill '%s': %v\n", skillName, err)
 				failCount++
@@ -89,5 +91,7 @@ var getSkillCmd = &cobra.Command{
 
 func init() {
 	getSkillCmd.Flags().StringVarP(&getSkillOutput, "output", "o", "", "Output directory (default: ~/.skills)")
+	getSkillCmd.Flags().StringVar(&getSkillVersion, "version", "", "Specific version to download (e.g. v1, v2)")
+	getSkillCmd.Flags().StringVar(&getSkillLabel, "label", "", "Route label to resolve version (e.g. latest, stable)")
 	rootCmd.AddCommand(getSkillCmd)
 }

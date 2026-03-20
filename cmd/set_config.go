@@ -30,7 +30,7 @@ var setConfigCmd = &cobra.Command{
 		}
 
 		// Create Nacos client
-		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey)
+		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, token)
 
 		fmt.Printf("Publishing config: %s (%s)...\n", dataID, group)
 		err = nacosClient.PublishConfig(dataID, group, content)

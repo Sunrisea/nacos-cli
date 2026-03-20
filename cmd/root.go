@@ -19,6 +19,7 @@ var (
 	authType    string
 	username    string
 	password    string
+	token       string
 	accessKey   string
 	secretKey   string
 	configFile  string
@@ -55,7 +56,7 @@ Examples:
 		var err error
 
 		// Check if any connection parameters are provided via command line
-		hasCommandLineConfig := host != "" || port > 0 || serverAddr != "" || username != "" || password != "" || accessKey != "" || secretKey != ""
+		hasCommandLineConfig := host != "" || port > 0 || serverAddr != "" || username != "" || password != "" || token != "" || accessKey != "" || secretKey != ""
 
 		if configFile != "" {
 			// Explicit config file specified
@@ -114,22 +115,24 @@ Examples:
 			}
 		}
 
-		// Username: command line > config file > default
-		if username == "" {
-			if fileConfig != nil && fileConfig.Username != "" {
-				username = fileConfig.Username
-			} else {
-				username = "nacos"
-			}
+		// Username: command line > config file
+		if username == "" && fileConfig != nil && fileConfig.Username != "" {
+			username = fileConfig.Username
 		}
 
-		// Password: command line > config file > default
-		if password == "" {
-			if fileConfig != nil && fileConfig.Password != "" {
-				password = fileConfig.Password
-			} else {
-				password = "nacos"
-			}
+		// Password: command line > config file
+		if password == "" && fileConfig != nil && fileConfig.Password != "" {
+			password = fileConfig.Password
+		}
+
+		// Token: command line > config file (token takes priority over username/password when set)
+		if token == "" && fileConfig != nil && fileConfig.Token != "" {
+			token = fileConfig.Token
+		}
+		// If token is provided, clear username/password defaults to avoid unnecessary login attempts
+		if token != "" {
+			username = ""
+			password = ""
 		}
 
 		// AccessKey / SecretKey: command line > config file（AuthType=aliyun 时使用）
@@ -147,7 +150,7 @@ Examples:
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		// Default behavior: start interactive terminal
-		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey)
+		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, token)
 		term := terminal.NewTerminal(nacosClient)
 		if err := term.Start(); err != nil {
 			checkError(err)
@@ -173,6 +176,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&authType, "auth-type", "", "Auth type: nacos (username/password) or aliyun (AK/SK)")
 	rootCmd.PersistentFlags().StringVarP(&username, "username", "u", "", "Username (nacos auth)")
 	rootCmd.PersistentFlags().StringVarP(&password, "password", "p", "", "Password (nacos auth)")
+	rootCmd.PersistentFlags().StringVar(&token, "token", "", "Access token (skips username/password login)")
 	rootCmd.PersistentFlags().StringVar(&accessKey, "access-key", "", "AccessKey (aliyun auth)")
 	rootCmd.PersistentFlags().StringVar(&secretKey, "secret-key", "", "SecretKey (aliyun auth)")
 
