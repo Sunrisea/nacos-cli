@@ -106,13 +106,9 @@ Examples:
 			namespace = fileConfig.Namespace
 		}
 
-		// AuthType: command line > config file > default nacos
-		if authType == "" {
-			if fileConfig != nil && fileConfig.AuthType != "" {
-				authType = fileConfig.AuthType
-			} else {
-				authType = "nacos"
-			}
+		// AuthType: command line > config file > auto-detect by NewNacosClient
+		if authType == "" && fileConfig != nil && fileConfig.AuthType != "" {
+			authType = fileConfig.AuthType
 		}
 
 		// Username: command line > config file
@@ -150,7 +146,7 @@ Examples:
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		// Default behavior: start interactive terminal
-		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, token)
+		nacosClient := mustNewNacosClient()
 		term := terminal.NewTerminal(nacosClient)
 		if err := term.Start(); err != nil {
 			checkError(err)
@@ -189,4 +185,14 @@ func checkError(err error) {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// mustNewNacosClient creates a NacosClient and exits with a clear error message on failure (e.g. login failed).
+func mustNewNacosClient() *client.NacosClient {
+	c, err := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, token)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	return c
 }

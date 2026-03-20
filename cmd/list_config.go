@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/nov11/nacos-cli/internal/client"
 	"github.com/nov11/nacos-cli/internal/help"
 	"github.com/spf13/cobra"
 )
@@ -21,7 +20,7 @@ var listConfigCmd = &cobra.Command{
 	Long:  help.ConfigList.FormatForCLI("nacos-cli"),
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create Nacos client
-		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, token)
+		nacosClient := mustNewNacosClient()
 
 		// List configs
 		configs, err := nacosClient.ListConfigs(configListDataID, configListGroup, "", configListPage, configListSize)

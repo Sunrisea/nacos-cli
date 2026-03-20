@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nov11/nacos-cli/internal/client"
 	"github.com/nov11/nacos-cli/internal/help"
 	"github.com/nov11/nacos-cli/internal/skill"
 	"github.com/spf13/cobra"
@@ -45,7 +44,7 @@ var getSkillCmd = &cobra.Command{
 		}
 
 		// Create Nacos client
-		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, token)
+		nacosClient := mustNewNacosClient()
 
 		// Create skill service
 		skillService := skill.NewSkillService(nacosClient)

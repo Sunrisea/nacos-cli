@@ -134,12 +134,18 @@ func (c *Config) IsComplete() bool {
 
 	// Check based on auth type
 	authType := strings.ToLower(c.AuthType)
+
+	// No auth: only host is needed
+	if authType == "" || authType == "none" {
+		return true
+	}
+
 	if authType == "aliyun" {
 		// Aliyun auth requires AccessKey and SecretKey
 		return c.AccessKey != "" && c.SecretKey != ""
 	}
 
-	// Nacos auth (default) requires username and password
+	// Nacos auth requires username and password
 	return c.Username != "" && c.Password != ""
 }
 
@@ -157,6 +163,12 @@ func (c *Config) GetMissingFields() []string {
 	}
 
 	authType := strings.ToLower(c.AuthType)
+
+	// No auth: no credential fields required
+	if authType == "" || authType == "none" {
+		return missing
+	}
+
 	if authType == "aliyun" {
 		if c.AccessKey == "" {
 			missing = append(missing, "accessKey")
@@ -165,7 +177,7 @@ func (c *Config) GetMissingFields() []string {
 			missing = append(missing, "secretKey")
 		}
 	} else {
-		// Default to nacos auth
+		// Nacos auth
 		if c.Username == "" {
 			missing = append(missing, "username")
 		}
@@ -252,18 +264,18 @@ func (c *Config) PromptForMissingFields() error {
 
 	// Prompt for auth type if not set
 	if c.AuthType == "" {
-		fmt.Print("Enter auth type (nacos/aliyun) [nacos]: ")
+		fmt.Print("Enter auth type (none/nacos/aliyun) [none]: ")
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return fmt.Errorf("failed to read auth type: %w", err)
 		}
 		input = strings.TrimSpace(strings.ToLower(input))
 		if input == "" {
-			c.AuthType = "nacos"
-		} else if input == "nacos" || input == "aliyun" {
+			c.AuthType = "none"
+		} else if input == "none" || input == "nacos" || input == "aliyun" {
 			c.AuthType = input
 		} else {
-			return fmt.Errorf("invalid auth type: %s (must be 'nacos' or 'aliyun')", input)
+			return fmt.Errorf("invalid auth type: %s (must be 'none', 'nacos' or 'aliyun')", input)
 		}
 	}
 
@@ -287,7 +299,7 @@ func (c *Config) PromptForMissingFields() error {
 				return fmt.Errorf("secret key is required for aliyun auth")
 			}
 		}
-	} else {
+	} else if c.AuthType == "nacos" {
 		// Nacos auth
 		if c.Username == "" {
 			fmt.Print("Enter username: ")
@@ -309,6 +321,7 @@ func (c *Config) PromptForMissingFields() error {
 			c.Password = password
 		}
 	}
+	// authType == "none": skip credential prompts
 
 	// Optionally prompt for namespace
 	if c.Namespace == "" {
@@ -445,21 +458,21 @@ func (c *Config) PromptForUpdate() error {
 	// Auth type
 	currentAuthType := c.AuthType
 	if currentAuthType == "" {
-		currentAuthType = "nacos"
+		currentAuthType = "none"
 	}
-	fmt.Printf("Enter auth type (nacos/aliyun) [%s]: ", currentAuthType)
+	fmt.Printf("Enter auth type (none/nacos/aliyun) [%s]: ", currentAuthType)
 	input, err = reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("failed to read auth type: %w", err)
 	}
 	input = strings.TrimSpace(strings.ToLower(input))
 	if input != "" {
-		if input != "nacos" && input != "aliyun" {
-			return fmt.Errorf("invalid auth type: %s (must be 'nacos' or 'aliyun')", input)
+		if input != "none" && input != "nacos" && input != "aliyun" {
+			return fmt.Errorf("invalid auth type: %s (must be 'none', 'nacos' or 'aliyun')", input)
 		}
 		c.AuthType = input
 	} else if c.AuthType == "" {
-		c.AuthType = "nacos"
+		c.AuthType = "none"
 	}
 
 	// Credentials based on auth type
@@ -496,7 +509,7 @@ func (c *Config) PromptForUpdate() error {
 		if c.SecretKey == "" {
 			return fmt.Errorf("secret key is required for aliyun auth")
 		}
-	} else {
+	} else if c.AuthType == "nacos" {
 		// Nacos auth - Username
 		currentUser := formatCurrent(c.Username, false)
 		if currentUser != "" {
@@ -530,6 +543,7 @@ func (c *Config) PromptForUpdate() error {
 			return fmt.Errorf("password is required")
 		}
 	}
+	// authType == "none": skip credential prompts
 
 	// Namespace
 	currentNS := c.Namespace

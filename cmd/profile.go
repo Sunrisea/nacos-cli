@@ -91,7 +91,7 @@ Examples:
 		if input == "" || input == "y" || input == "yes" {
 			fmt.Println()
 			// Start interactive terminal with the edited config
-			nacosClient := client.NewNacosClient(
+			nacosClient, err := client.NewNacosClient(
 				cfg.GetServerAddr(),
 				cfg.Namespace,
 				cfg.AuthType,
@@ -101,6 +101,10 @@ Examples:
 				cfg.SecretKey,
 				cfg.Token,
 			)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
 			term := terminal.NewTerminal(nacosClient)
 			if err := term.Start(); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)

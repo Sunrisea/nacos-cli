@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/nov11/nacos-cli/internal/client"
 	"github.com/nov11/nacos-cli/internal/help"
 	"github.com/nov11/nacos-cli/internal/skill"
 	"github.com/spf13/cobra"
@@ -23,7 +22,7 @@ var listSkillCmd = &cobra.Command{
 	Long:  help.SkillList.FormatForCLI("nacos-cli"),
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create Nacos client
-		nacosClient := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, token)
+		nacosClient := mustNewNacosClient()
 
 		// Create skill service
 		skillService := skill.NewSkillService(nacosClient)

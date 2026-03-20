@@ -103,7 +103,7 @@ func (s *SkillService) ListSkills(skillName string, pageNo, pageSize int) ([]Ski
 
 	if resp.StatusCode != 200 {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, 0, fmt.Errorf("list skills failed: status=%d, body=%s", resp.StatusCode, string(respBody))
+		return nil, 0, client.ParseHTTPError(resp.StatusCode, respBody, "list skills")
 	}
 
 	respBody, err := io.ReadAll(resp.Body)
@@ -165,7 +165,7 @@ func (s *SkillService) GetSkill(skillName, outputDir string, version, label stri
 	}
 
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("get skill failed: status=%d, body=%s", resp.StatusCode, string(respBody))
+		return client.ParseHTTPError(resp.StatusCode, respBody, "get skill")
 	}
 
 	var v3Resp V3Response
@@ -325,7 +325,7 @@ func (s *SkillService) UploadSkill(skillPath string) error {
 
 	if resp.StatusCode != 200 {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("upload failed: status=%d, body=%s", resp.StatusCode, string(respBody))
+		return client.ParseHTTPError(resp.StatusCode, respBody, "upload skill")
 	}
 
 	return nil
