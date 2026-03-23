@@ -34,21 +34,6 @@ type SkillListItem struct {
 	Description string
 }
 
-// Skill represents a complete skill (new API model)
-type Skill struct {
-	Name        string                     `json:"name"`
-	Description string                     `json:"description"`
-	Instruction string                     `json:"instruction"`
-	Resource    map[string]*SkillResource  `json:"resource,omitempty"`
-}
-
-// SkillResource represents a single resource in a skill
-type SkillResource struct {
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Content string `json:"content"`
-}
-
 // NewSkillService creates a new skill service
 func NewSkillService(nacosClient *client.NacosClient) *SkillService {
 	return &SkillService{
@@ -128,7 +113,8 @@ func (s *SkillService) ListSkills(skillName string, pageNo, pageSize int) ([]Ski
 	return skillList.PageItems, skillList.TotalCount, nil
 }
 
-// GetSkill retrieves a skill via the new Client Skill API and saves it to local directory.
+// GetSkill downloads a skill as ZIP via the Client Skill API and extracts it to local directory.
+// The server returns a ZIP binary stream containing skillName/SKILL.md and resource files.
 // Priority for version resolution: label > version > latest.
 func (s *SkillService) GetSkill(skillName, outputDir string, version, label string) error {
 	params := url.Values{}
@@ -159,75 +145,64 @@ func (s *SkillService) GetSkill(skillName, outputDir string, version, label stri
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	zipBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode != 200 {
-		return client.ParseHTTPError(resp.StatusCode, respBody, "get skill")
+		return client.ParseHTTPError(resp.StatusCode, zipBytes, "get skill")
 	}
 
-	var v3Resp V3Response
-	if err := json.Unmarshal(respBody, &v3Resp); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-	if v3Resp.Code != 0 {
-		return fmt.Errorf("get skill failed: code=%d, message=%s", v3Resp.Code, v3Resp.Message)
-	}
-
-	var skill Skill
-	if err := json.Unmarshal(v3Resp.Data, &skill); err != nil {
-		return fmt.Errorf("failed to parse skill: %w", err)
-	}
-
-	// Create output directory
-	skillDir := filepath.Join(outputDir, skillName)
-	if err := os.MkdirAll(skillDir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
-	}
-
-	// Save resource files
-	for _, res := range skill.Resource {
-		if res == nil || res.Content == "" {
-			continue
-		}
-		var fileDir string
-		if res.Type != "" {
-			fileDir = filepath.Join(skillDir, res.Type)
-		} else {
-			fileDir = skillDir
-		}
-		if err := os.MkdirAll(fileDir, 0755); err != nil {
-			return fmt.Errorf("failed to create resource directory: %w", err)
-		}
-		filePath := filepath.Join(fileDir, res.Name)
-		if err := os.WriteFile(filePath, []byte(res.Content), 0644); err != nil {
-			return fmt.Errorf("failed to write resource file %s: %w", res.Name, err)
-		}
-	}
-
-	// Generate SKILL.md
-	return s.generateSkillMD(skillDir, &skill)
+	// Extract ZIP to output directory
+	return extractZip(zipBytes, outputDir)
 }
 
-// generateSkillMD creates SKILL.md file
-func (s *SkillService) generateSkillMD(skillDir string, skill *Skill) error {
-	var md strings.Builder
+// extractZip extracts a ZIP byte array to the target directory.
+// ZIP entries like "skillName/SKILL.md" are extracted preserving their path structure.
+func extractZip(zipBytes []byte, targetDir string) error {
+	zipReader, err := zip.NewReader(bytes.NewReader(zipBytes), int64(len(zipBytes)))
+	if err != nil {
+		return fmt.Errorf("failed to read zip: %w", err)
+	}
 
-	// YAML frontmatter
-	md.WriteString("---\n")
-	md.WriteString(fmt.Sprintf("name: %s\n", skill.Name))
-	md.WriteString(fmt.Sprintf("description: \"%s\"\n", skill.Description))
-	md.WriteString("---\n\n")
+	for _, f := range zipReader.File {
+		// Security: reject path traversal
+		if strings.Contains(f.Name, "..") {
+			return fmt.Errorf("unsafe zip entry path: %s", f.Name)
+		}
 
-	// Instruction
-	md.WriteString(skill.Instruction)
-	md.WriteString("\n")
+		destPath := filepath.Join(targetDir, f.Name)
 
-	// Write to file
-	mdPath := filepath.Join(skillDir, "SKILL.md")
-	return os.WriteFile(mdPath, []byte(md.String()), 0644)
+		if f.FileInfo().IsDir() {
+			if err := os.MkdirAll(destPath, 0755); err != nil {
+				return fmt.Errorf("failed to create directory %s: %w", destPath, err)
+			}
+			continue
+		}
+
+		// Ensure parent directory exists
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			return fmt.Errorf("failed to create parent directory: %w", err)
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			return fmt.Errorf("failed to open zip entry %s: %w", f.Name, err)
+		}
+
+		data, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			return fmt.Errorf("failed to read zip entry %s: %w", f.Name, err)
+		}
+
+		if err := os.WriteFile(destPath, data, 0644); err != nil {
+			return fmt.Errorf("failed to write file %s: %w", destPath, err)
+		}
+	}
+
+	return nil
 }
 
 // UploadSkill uploads a skill from local directory or a pre-built zip file.

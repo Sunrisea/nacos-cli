@@ -3,3 +3,4 @@ build/
 
 # Binary executable
 nacos-cli
+bin/nacos-cli
