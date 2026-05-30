@@ -423,7 +423,10 @@ func (s *SkillService) UploadSkill(skillPath string) error {
 			if err != nil {
 				return err
 			}
-			zipPath := filepath.Join(skillName, relPath)
+			// Use forward slashes for ZIP paths (required by ZIP spec) and
+			// do NOT prefix with skillName — server expects files at the root
+			// of the archive (e.g. SKILL.md, not skillName/SKILL.md).
+			zipPath := filepath.ToSlash(relPath)
 			writer, err := zipWriter.Create(zipPath)
 			if err != nil {
 				return err

@@ -542,6 +542,15 @@ MIT License
 
 ## Changelog
 
+### Next Release
+
+- Fixed `skill-upload` and `agentspec-upload` creating ZIP archives with an
+  extra directory prefix, causing server-side extraction failures
+  ([#46](https://github.com/nacos-group/nacos-cli/issues/46))
+- Fixed ZIP archive paths using OS-native backslashes on Windows, violating
+  the ZIP specification's forward-slash requirement
+  ([#26](https://github.com/nacos-group/nacos-cli/issues/26))
+
 ### v1.0.4 (2026-05-08)
 
 - Aligned `agentspec-*` commands with `skill-*` around the full server lifecycle

@@ -320,7 +320,10 @@ func (s *AgentSpecService) UploadAgentSpec(agentSpecPath string) error {
 			if err != nil {
 				return err
 			}
-			zipPath := filepath.Join(specName, relPath)
+			// Use forward slashes for ZIP paths (required by ZIP spec) and
+			// do NOT prefix with specName — server expects files at the root
+			// of the archive (e.g. AGENTSPEC.md, not specName/AGENTSPEC.md).
+			zipPath := filepath.ToSlash(relPath)
 			writer, err := zipWriter.Create(zipPath)
 			if err != nil {
 				return err

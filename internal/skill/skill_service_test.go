@@ -1,11 +1,14 @@
 package skill
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -197,4 +200,86 @@ func newTestNacosClient(serverURL string) (*client.NacosClient, error) {
 		"",
 		"",
 	)
+}
+
+// TestUploadSkillZipPaths verifies that:
+// 1. ZIP entries have NO extra skillName/ prefix (#46)
+// 2. ZIP entries use forward slashes even on Windows (#26)
+func TestUploadSkillZipPaths(t *testing.T) {
+	var zipData []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/nacos/v3/admin/ai/skills/upload" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatalf("parse multipart: %v", err)
+		}
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			t.Fatalf("read uploaded file: %v", err)
+		}
+		defer file.Close()
+		zipData, err = io.ReadAll(file)
+		if err != nil {
+			t.Fatalf("read upload body: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	// Create a skill directory with nested subdirectory
+	skillDir := filepath.Join(t.TempDir(), "my-skill")
+	subDir := filepath.Join(skillDir, "prompts", "templates")
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# My Skill\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(subDir, "default.txt"), []byte("hello\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	nacosClient, err := newTestNacosClient(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := NewSkillService(nacosClient).UploadSkill(skillDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse the ZIP and verify paths
+	reader, err := zip.NewReader(bytes.NewReader(zipData), int64(len(zipData)))
+	if err != nil {
+		t.Fatalf("open zip: %v", err)
+	}
+
+	expectedPaths := map[string]bool{
+		"SKILL.md":                     false,
+		"prompts/templates/default.txt": false,
+	}
+
+	for _, f := range reader.File {
+		// Verify no backslashes (Windows path separator)
+		if strings.Contains(f.Name, "\\") {
+			t.Errorf("ZIP entry contains backslash: %q", f.Name)
+		}
+		// Verify no skillName prefix
+		if strings.HasPrefix(f.Name, "my-skill/") {
+			t.Errorf("ZIP entry has unexpected skillName prefix: %q", f.Name)
+		}
+		if _, ok := expectedPaths[f.Name]; ok {
+			expectedPaths[f.Name] = true
+		} else {
+			t.Errorf("unexpected ZIP entry: %q", f.Name)
+		}
+	}
+
+	for path, found := range expectedPaths {
+		if !found {
+			t.Errorf("expected ZIP entry not found: %q", path)
+		}
+	}
 }

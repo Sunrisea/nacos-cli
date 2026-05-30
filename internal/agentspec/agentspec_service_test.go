@@ -1,8 +1,18 @@
 package agentspec
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/nacos-group/nacos-cli/internal/client"
 )
 
 func TestBuildResourceRelativePath(t *testing.T) {
@@ -110,5 +120,93 @@ func TestAgentSpecResource_Metadata(t *testing.T) {
 
 	if size, ok := res.Metadata["size"]; !ok || size != "1024" {
 		t.Errorf("Expected size '1024', got %v", size)
+	}
+}
+
+// TestUploadAgentSpecZipPaths verifies that:
+// 1. ZIP entries have NO extra specName/ prefix (#46)
+// 2. ZIP entries use forward slashes even on Windows (#26)
+func TestUploadAgentSpecZipPaths(t *testing.T) {
+	var zipData []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/nacos/v3/admin/ai/agentspecs/upload" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatalf("parse multipart: %v", err)
+		}
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			t.Fatalf("read uploaded file: %v", err)
+		}
+		defer file.Close()
+		zipData, err = io.ReadAll(file)
+		if err != nil {
+			t.Fatalf("read upload body: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	// Create an agentspec directory with nested subdirectory
+	specDir := filepath.Join(t.TempDir(), "my-agent")
+	subDir := filepath.Join(specDir, "resources", "config")
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(specDir, "AGENTSPEC.md"), []byte("# My Agent\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(subDir, "app.yaml"), []byte("key: value\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	nacosClient, err := client.NewNacosClient(
+		strings.TrimPrefix(server.URL, "http://"),
+		"test-ns",
+		client.AuthTypeNone,
+		"", "", "", "", "", "", "",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	svc := NewAgentSpecService(nacosClient)
+	if err := svc.UploadAgentSpec(specDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse the ZIP and verify paths
+	reader, err := zip.NewReader(bytes.NewReader(zipData), int64(len(zipData)))
+	if err != nil {
+		t.Fatalf("open zip: %v", err)
+	}
+
+	expectedPaths := map[string]bool{
+		"AGENTSPEC.md":           false,
+		"resources/config/app.yaml": false,
+	}
+
+	for _, f := range reader.File {
+		// Verify no backslashes (Windows path separator)
+		if strings.Contains(f.Name, "\\") {
+			t.Errorf("ZIP entry contains backslash: %q", f.Name)
+		}
+		// Verify no specName prefix
+		if strings.HasPrefix(f.Name, "my-agent/") {
+			t.Errorf("ZIP entry has unexpected specName prefix: %q", f.Name)
+		}
+		if _, ok := expectedPaths[f.Name]; ok {
+			expectedPaths[f.Name] = true
+		} else {
+			t.Errorf("unexpected ZIP entry: %q", f.Name)
+		}
+	}
+
+	for path, found := range expectedPaths {
+		if !found {
+			t.Errorf("expected ZIP entry not found: %q", path)
+		}
 	}
 }
