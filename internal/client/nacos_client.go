@@ -41,6 +41,7 @@ type stsTokenResponse struct {
 // NacosClient represents a Nacos API client
 type NacosClient struct {
 	ServerAddr       string
+	Scheme           string // http or https (default: http)
 	Namespace        string
 	AuthType         string
 	Username         string
@@ -137,9 +138,12 @@ func ParseHTTPError(statusCode int, body []byte, operation string) error {
 
 // NewNacosClient creates a new Nacos client with automatic authentication.
 // Returns an error if login is required but fails (e.g. wrong credentials).
-func NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, securityToken, stsURL, stsAuthToken string, opts ...func(*NacosClient)) (*NacosClient, error) {
+func NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, securityToken, stsURL, stsAuthToken, scheme string, opts ...func(*NacosClient)) (*NacosClient, error) {
 	if namespace == "" {
 		namespace = "public"
+	}
+	if scheme == "" {
+		scheme = "http"
 	}
 	if authType == "" {
 		if stsURL != "" && stsAuthToken != "" {
@@ -155,6 +159,7 @@ func NewNacosClient(serverAddr, namespace, authType, username, password, accessK
 
 	c := &NacosClient{
 		ServerAddr:    serverAddr,
+		Scheme:        scheme,
 		Namespace:     namespace,
 		AuthType:      authType,
 		Username:      username,
@@ -194,6 +199,15 @@ func (c *NacosClient) isLocalAddr() bool {
 		strings.HasPrefix(addr, "0.0.0.0")
 }
 
+// BaseURL returns the base URL including scheme and server address (e.g. "https://nacos.example.com:443").
+func (c *NacosClient) BaseURL() string {
+	scheme := c.Scheme
+	if scheme == "" {
+		scheme = "http"
+	}
+	return fmt.Sprintf("%s://%s", scheme, c.ServerAddr)
+}
+
 // login attempts to authenticate with Nacos server using v3 API first, then falls back to v1.
 // For Nacos 3.x, v3 login succeeds but some legacy v1 APIs (like config list) may return 410 (Gone),
 // so once v3 login succeeds we MUST NOT override authLoginVersion with v1.
@@ -204,7 +218,7 @@ func (c *NacosClient) login() error {
 	// Prefer v3 login. If we've previously determined v1 only, skip v3.
 	tryV3 := c.authLoginVersion == "" || c.authLoginVersion == "v3"
 	if tryV3 {
-		u := fmt.Sprintf("http://%s/nacos/v3/auth/user/login", c.ServerAddr)
+		u := fmt.Sprintf("%s/nacos/v3/auth/user/login", c.BaseURL())
 		resp, err := c.httpClient.R().SetFormData(form).Post(u)
 		if err != nil {
 			if !isLocal {
@@ -219,7 +233,7 @@ func (c *NacosClient) login() error {
 	}
 
 	// Fallback to v1 login if v3 is unavailable (e.g., older Nacos versions).
-	u := fmt.Sprintf("http://%s/nacos/v1/auth/login", c.ServerAddr)
+	u := fmt.Sprintf("%s/nacos/v1/auth/login", c.BaseURL())
 	resp, err := c.httpClient.R().SetFormData(form).Post(u)
 	if err != nil {
 		if !isLocal {
@@ -495,7 +509,7 @@ func (c *NacosClient) ListConfigs(dataID, groupName, namespaceID string, pageNo,
 		params.Set("namespaceId", ns)
 	}
 
-	v3URL := fmt.Sprintf("http://%s/nacos/v3/admin/cs/config/list", c.ServerAddr)
+	v3URL := fmt.Sprintf("%s/nacos/v3/admin/cs/config/list", c.BaseURL())
 	resp, err := c.doWithStsRetry(func() (*resty.Response, error) {
 		req := c.httpClient.R().SetQueryString(params.Encode())
 		if c.AuthType == AuthTypeNacos && c.AccessToken != "" {
@@ -551,7 +565,7 @@ func (c *NacosClient) listConfigsV1(dataID, groupName, namespace string, pageNo,
 		params.Set("accessToken", c.AccessToken)
 	}
 
-	v1URL := fmt.Sprintf("http://%s/nacos/v1/cs/configs", c.ServerAddr)
+	v1URL := fmt.Sprintf("%s/nacos/v1/cs/configs", c.BaseURL())
 	resp, err := c.doWithStsRetry(func() (*resty.Response, error) {
 		req := c.httpClient.R().SetQueryString(params.Encode())
 		c.setSpasHeaders(req, namespace, groupName)
@@ -592,7 +606,7 @@ func (c *NacosClient) GetConfig(dataID, group string) (string, error) {
 		params.Set("namespaceId", ns)
 	}
 
-	apiURL := fmt.Sprintf("http://%s/nacos/v3/client/cs/config", c.ServerAddr)
+	apiURL := fmt.Sprintf("%s/nacos/v3/client/cs/config", c.BaseURL())
 	resp, err := c.doWithStsRetry(func() (*resty.Response, error) {
 		req := c.httpClient.R().SetQueryString(params.Encode())
 		if c.AuthType == AuthTypeNacos && c.AccessToken != "" {
@@ -649,7 +663,7 @@ func (c *NacosClient) PublishConfig(dataID, group, content string) error {
 		params["namespaceId"] = c.Namespace
 	}
 
-	apiURL := fmt.Sprintf("http://%s/nacos/v3/admin/cs/config", c.ServerAddr)
+	apiURL := fmt.Sprintf("%s/nacos/v3/admin/cs/config", c.BaseURL())
 	resp, err := c.doWithStsRetry(func() (*resty.Response, error) {
 		req := c.httpClient.R().SetFormData(params)
 		if c.AuthType == AuthTypeNacos && c.AccessToken != "" {

@@ -184,3 +184,57 @@ func TestLoadEncryptedConfigRequiresExistingKey(t *testing.T) {
 		t.Fatalf("encrypted load without key should not create a new key, stat err=%v", err)
 	}
 }
+
+func TestGetScheme(t *testing.T) {
+	tests := []struct {
+		name   string
+		scheme string
+		want   string
+	}{
+		{"empty defaults to http", "", "http"},
+		{"explicit http", "http", "http"},
+		{"explicit https", "https", "https"},
+		{"uppercase HTTPS normalized", "HTTPS", "https"},
+		{"mixed case", "Https", "https"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{Scheme: tt.scheme}
+			got := cfg.GetScheme()
+			if got != tt.want {
+				t.Errorf("GetScheme() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfigWithSchemeField(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	configPath, err := GetProfileConfigPath("https-test")
+	if err != nil {
+		t.Fatalf("get profile config path: %v", err)
+	}
+	cfg := &Config{
+		Host:   "nacos.example.com",
+		Port:   443,
+		Scheme: "https",
+	}
+	if err := cfg.SaveConfig(configPath); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	loaded, err := LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if loaded.Scheme != "https" {
+		t.Errorf("loaded Scheme = %q, want %q", loaded.Scheme, "https")
+	}
+	if loaded.GetScheme() != "https" {
+		t.Errorf("GetScheme() = %q, want %q", loaded.GetScheme(), "https")
+	}
+	if loaded.GetServerAddr() != "nacos.example.com:443" {
+		t.Errorf("GetServerAddr() = %q, want %q", loaded.GetServerAddr(), "nacos.example.com:443")
+	}
+}

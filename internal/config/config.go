@@ -22,6 +22,7 @@ const (
 type Config struct {
 	Host          string `yaml:"host"`
 	Port          int    `yaml:"port"`
+	Scheme        string `yaml:"scheme"` // http | https (default: http)
 	AuthType      string `yaml:"authType"` // nacos | aliyun | sts-hiclaw
 	Username      string `yaml:"username"`
 	Password      string `yaml:"password"`
@@ -90,6 +91,14 @@ func (c *Config) GetServerAddr() string {
 		return fmt.Sprintf("%s:8848", c.Host)
 	}
 	return fmt.Sprintf("%s:%d", c.Host, c.Port)
+}
+
+// GetScheme returns the configured scheme, defaulting to "http".
+func (c *Config) GetScheme() string {
+	if c.Scheme == "" {
+		return "http"
+	}
+	return strings.ToLower(c.Scheme)
 }
 
 // GetConfigDir returns the default config directory path (~/.nacos-cli)

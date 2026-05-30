@@ -199,6 +199,7 @@ func newTestNacosClient(serverURL string) (*client.NacosClient, error) {
 		"",
 		"",
 		"",
+		"http",
 	)
 }
 

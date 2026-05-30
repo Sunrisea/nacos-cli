@@ -31,6 +31,7 @@ type ChangeHandler func(dataID, group, tenant string) error
 // ConfigListener listens for configuration changes from Nacos
 type ConfigListener struct {
 	serverAddr  string
+	scheme      string
 	username    string
 	password    string
 	accessToken string
@@ -38,9 +39,13 @@ type ConfigListener struct {
 }
 
 // NewConfigListener creates a new configuration listener
-func NewConfigListener(serverAddr, username, password string) *ConfigListener {
+func NewConfigListener(serverAddr, scheme, username, password string) *ConfigListener {
+	if scheme == "" {
+		scheme = "http"
+	}
 	return &ConfigListener{
 		serverAddr: serverAddr,
+		scheme:     scheme,
 		username:   username,
 		password:   password,
 		httpClient: &http.Client{
@@ -49,9 +54,14 @@ func NewConfigListener(serverAddr, username, password string) *ConfigListener {
 	}
 }
 
+// baseURL returns scheme://serverAddr
+func (l *ConfigListener) baseURL() string {
+	return fmt.Sprintf("%s://%s", l.scheme, l.serverAddr)
+}
+
 // Login gets access token for authentication using v3 API
 func (l *ConfigListener) Login() error {
-	loginURL := fmt.Sprintf("http://%s/nacos/v3/auth/user/login", l.serverAddr)
+	loginURL := fmt.Sprintf("%s/nacos/v3/auth/user/login", l.baseURL())
 
 	data := url.Values{}
 	data.Set("username", l.username)
@@ -183,7 +193,7 @@ func (l *ConfigListener) getConfig(dataID, group, tenant string) (string, string
 		params.Set("namespaceId", tenant)
 	}
 
-	configURL := fmt.Sprintf("http://%s/nacos/v3/client/cs/config?%s", l.serverAddr, params.Encode())
+	configURL := fmt.Sprintf("%s/nacos/v3/client/cs/config?%s", l.baseURL(), params.Encode())
 
 	req, err := http.NewRequest("GET", configURL, nil)
 	if err != nil {

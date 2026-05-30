@@ -117,8 +117,8 @@ func (s *AgentSpecService) ListAgentSpecs(agentSpecName string, search string, p
 		params.Set("search", search)
 	}
 
-	listURL := fmt.Sprintf("http://%s/nacos/v3/admin/ai/agentspecs/list?%s",
-		s.client.ServerAddr, params.Encode())
+	listURL := fmt.Sprintf("%s/nacos/v3/admin/ai/agentspecs/list?%s",
+		s.client.BaseURL(), params.Encode())
 
 	req, err := s.client.NewAuthedRequest("GET", listURL, nil)
 	if err != nil {
@@ -193,8 +193,8 @@ func (s *AgentSpecService) GetAgentSpec(name, outputDir string, version, label s
 		params.Set("label", label)
 	}
 
-	apiURL := fmt.Sprintf("http://%s/nacos/v3/client/ai/agentspecs?%s",
-		s.client.ServerAddr, params.Encode())
+	apiURL := fmt.Sprintf("%s/nacos/v3/client/ai/agentspecs?%s",
+		s.client.BaseURL(), params.Encode())
 
 	req, err := s.client.NewAuthedRequest("GET", apiURL, nil)
 	if err != nil {
@@ -365,8 +365,8 @@ func (s *AgentSpecService) UploadAgentSpec(agentSpecPath string) error {
 	uploadParams := url.Values{}
 	uploadParams.Set("namespaceId", s.client.Namespace)
 	uploadParams.Set("overwrite", "false")
-	uploadURL := fmt.Sprintf("http://%s/nacos/v3/admin/ai/agentspecs/upload?%s",
-		s.client.ServerAddr, uploadParams.Encode())
+	uploadURL := fmt.Sprintf("%s/nacos/v3/admin/ai/agentspecs/upload?%s",
+		s.client.BaseURL(), uploadParams.Encode())
 	req, err := s.client.NewAuthedRequest("POST", uploadURL, body)
 	if err != nil {
 		return err
@@ -403,8 +403,8 @@ func (s *AgentSpecService) DescribeAgentSpec(agentSpecName string) (*AgentSpecDe
 	params.Set("namespaceId", s.client.Namespace)
 	params.Set("agentSpecName", agentSpecName)
 
-	describeURL := fmt.Sprintf("http://%s/nacos/v3/admin/ai/agentspecs?%s",
-		s.client.ServerAddr, params.Encode())
+	describeURL := fmt.Sprintf("%s/nacos/v3/admin/ai/agentspecs?%s",
+		s.client.BaseURL(), params.Encode())
 
 	req, err := s.client.NewAuthedRequest("GET", describeURL, nil)
 	if err != nil {
@@ -458,8 +458,8 @@ func (s *AgentSpecService) SubmitAgentSpec(agentSpecName, version string) error 
 		params.Set("version", version)
 	}
 
-	submitURL := fmt.Sprintf("http://%s/nacos/v3/admin/ai/agentspecs/submit?%s",
-		s.client.ServerAddr, params.Encode())
+	submitURL := fmt.Sprintf("%s/nacos/v3/admin/ai/agentspecs/submit?%s",
+		s.client.BaseURL(), params.Encode())
 	req, err := s.client.NewAuthedRequest("POST", submitURL, nil)
 	if err != nil {
 		return err
@@ -515,8 +515,8 @@ func (s *AgentSpecService) PublishAgentSpec(agentSpecName, version string, updat
 		params.Set("updateLatestLabel", "false")
 	}
 
-	publishURL := fmt.Sprintf("http://%s/nacos/v3/admin/ai/agentspecs/publish?%s",
-		s.client.ServerAddr, params.Encode())
+	publishURL := fmt.Sprintf("%s/nacos/v3/admin/ai/agentspecs/publish?%s",
+		s.client.BaseURL(), params.Encode())
 	req, err := s.client.NewAuthedRequest("POST", publishURL, nil)
 	if err != nil {
 		return err

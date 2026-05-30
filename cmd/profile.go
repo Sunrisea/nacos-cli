@@ -122,6 +122,7 @@ Examples:
 				cfg.SecurityToken,
 				stsURLVal,
 				stsAuthTokenVal,
+				cfg.GetScheme(),
 			)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)

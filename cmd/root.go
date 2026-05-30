@@ -16,6 +16,7 @@ var (
 	serverAddr    string
 	host          string
 	port          int
+	scheme        string
 	namespace     string
 	authType      string
 	username      string
@@ -60,7 +61,7 @@ Examples:
 		var err error
 
 		// Check if any connection parameters are provided via command line
-		hasCommandLineConfig := host != "" || port > 0 || serverAddr != "" || username != "" || password != "" || accessKey != "" || secretKey != "" || securityToken != "" || authType == "sts-hiclaw"
+		hasCommandLineConfig := host != "" || port > 0 || serverAddr != "" || username != "" || password != "" || accessKey != "" || secretKey != "" || securityToken != "" || authType == "sts-hiclaw" || scheme != ""
 		envHost := strings.TrimSpace(os.Getenv("NACOS_HOST"))
 		envNamespace := strings.TrimSpace(os.Getenv("NACOS_NAMESPACE"))
 		envPortRaw := strings.TrimSpace(os.Getenv("NACOS_PORT"))
@@ -104,6 +105,17 @@ Examples:
 		if serverAddr == "" {
 			// Try to build from --host and --port
 			if host != "" {
+				// Auto-detect and strip scheme prefix from host (e.g. "https://nacos.example.com")
+				lower := strings.ToLower(host)
+				if strings.HasPrefix(lower, "https://") {
+					if scheme == "" {
+						scheme = "https"
+					}
+					host = host[8:]
+				} else if strings.HasPrefix(lower, "http://") {
+					host = host[7:]
+				}
+
 				if port > 0 {
 					serverAddr = fmt.Sprintf("%s:%d", host, port)
 				} else if strings.Contains(host, ":") {
@@ -177,6 +189,26 @@ Examples:
 			serverAddr = "market.hiclaw.io:80"
 		}
 
+		// Scheme resolution: command line > auto-detect from host > config file > env var > default (http)
+		// If --host contained a scheme prefix (e.g. "https://nacos.example.com"), extract it.
+		if scheme == "" && host != "" {
+			lower := strings.ToLower(host)
+			if strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "http://") {
+				// Already handled by serverAddr parsing above via net/url or manual prefix strip
+			}
+		}
+		if scheme == "" && fileConfig != nil && fileConfig.GetScheme() != "http" {
+			scheme = fileConfig.GetScheme()
+		}
+		if scheme == "" {
+			if envScheme := os.Getenv("NACOS_SCHEME"); envScheme != "" {
+				scheme = strings.ToLower(envScheme)
+			}
+		}
+		if scheme == "" {
+			scheme = "http"
+		}
+
 		// For sts-hiclaw auth, read HICLAW_CONTROLLER_URL and HICLAW_AUTH_TOKEN_FILE from environment variables
 		if authType == "sts-hiclaw" {
 			if stsURL == "" {
@@ -204,6 +236,7 @@ Examples:
 
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[debug] authType=%s\n", authType)
+			fmt.Fprintf(os.Stderr, "[debug] scheme=%s\n", scheme)
 			fmt.Fprintf(os.Stderr, "[debug] serverAddr=%s\n", serverAddr)
 			fmt.Fprintf(os.Stderr, "[debug] namespace=%s\n", namespace)
 			if stsURL != "" {
@@ -259,6 +292,7 @@ func init() {
 	// Global flags - new style
 	rootCmd.PersistentFlags().StringVar(&host, "host", "", "Nacos server host (default: market.hiclaw.io)")
 	rootCmd.PersistentFlags().IntVar(&port, "port", 0, "Nacos server port (default: 8848 when used with --host)")
+	rootCmd.PersistentFlags().StringVar(&scheme, "scheme", "", "Protocol scheme: http or https (default: http)")
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "Path to configuration file")
 	rootCmd.PersistentFlags().StringVar(&profileName, "profile", "", "Profile name (e.g., dev, prod). Loads ~/.nacos-cli/<profile>.conf")
 
@@ -286,7 +320,7 @@ func checkError(err error) {
 
 // mustNewNacosClient creates a NacosClient and exits with a clear error message on failure (e.g. login failed).
 func mustNewNacosClient() *client.NacosClient {
-	c, err := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, securityToken, stsURL, stsAuthToken, func(c *client.NacosClient) {
+	c, err := client.NewNacosClient(serverAddr, namespace, authType, username, password, accessKey, secretKey, securityToken, stsURL, stsAuthToken, scheme, func(c *client.NacosClient) {
 		c.Verbose = verbose
 	})
 	if err != nil {

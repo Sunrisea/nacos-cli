@@ -100,8 +100,8 @@ func (s *SkillService) ListSkills(skillName string, pageNo, pageSize int) ([]Ski
 		params.Set("skillName", skillName)
 	}
 
-	listURL := fmt.Sprintf("http://%s/nacos/v3/admin/ai/skills/list?%s",
-		s.client.ServerAddr, params.Encode())
+	listURL := fmt.Sprintf("%s/nacos/v3/admin/ai/skills/list?%s",
+		s.client.BaseURL(), params.Encode())
 
 	req, err := s.client.NewAuthedRequest("GET", listURL, nil)
 	if err != nil {
@@ -156,8 +156,8 @@ func (s *SkillService) DescribeSkill(skillName string) (*SkillDetail, error) {
 	params.Set("namespaceId", s.client.Namespace)
 	params.Set("skillName", skillName)
 
-	describeURL := fmt.Sprintf("http://%s/nacos/v3/admin/ai/skills?%s",
-		s.client.ServerAddr, params.Encode())
+	describeURL := fmt.Sprintf("%s/nacos/v3/admin/ai/skills?%s",
+		s.client.BaseURL(), params.Encode())
 
 	req, err := s.client.NewAuthedRequest("GET", describeURL, nil)
 	if err != nil {
@@ -213,8 +213,8 @@ func (s *SkillService) UpdateSkillScope(skillName, scope string) error {
 	params.Set("skillName", skillName)
 	params.Set("scope", normalizedScope)
 
-	scopeURL := fmt.Sprintf("http://%s/nacos/v3/admin/ai/skills/scope?%s",
-		s.client.ServerAddr, params.Encode())
+	scopeURL := fmt.Sprintf("%s/nacos/v3/admin/ai/skills/scope?%s",
+		s.client.BaseURL(), params.Encode())
 	req, err := s.client.NewAuthedRequest("PUT", scopeURL, nil)
 	if err != nil {
 		return err
@@ -248,8 +248,8 @@ func (s *SkillService) UpdateSkillBizTags(skillName, bizTags string) error {
 	params.Set("skillName", skillName)
 	params.Set("bizTags", bizTags)
 
-	bizTagsURL := fmt.Sprintf("http://%s/nacos/v3/admin/ai/skills/biz-tags?%s",
-		s.client.ServerAddr, params.Encode())
+	bizTagsURL := fmt.Sprintf("%s/nacos/v3/admin/ai/skills/biz-tags?%s",
+		s.client.BaseURL(), params.Encode())
 	req, err := s.client.NewAuthedRequest("PUT", bizTagsURL, nil)
 	if err != nil {
 		return err
@@ -311,8 +311,8 @@ func (s *SkillService) GetSkill(skillName, outputDir string, version, label stri
 		params.Set("label", label)
 	}
 
-	apiURL := fmt.Sprintf("http://%s/nacos/v3/client/ai/skills?%s",
-		s.client.ServerAddr, params.Encode())
+	apiURL := fmt.Sprintf("%s/nacos/v3/client/ai/skills?%s",
+		s.client.BaseURL(), params.Encode())
 
 	req, err := s.client.NewAuthedRequest("GET", apiURL, nil)
 	if err != nil {
@@ -465,8 +465,8 @@ func (s *SkillService) UploadSkill(skillPath string) error {
 	}
 
 	// Send HTTP request
-	uploadURL := fmt.Sprintf("http://%s/nacos/v3/admin/ai/skills/upload?namespaceId=%s",
-		s.client.ServerAddr, s.client.Namespace)
+	uploadURL := fmt.Sprintf("%s/nacos/v3/admin/ai/skills/upload?namespaceId=%s",
+		s.client.BaseURL(), s.client.Namespace)
 	req, err := s.client.NewAuthedRequest("POST", uploadURL, body)
 	if err != nil {
 		return err
@@ -513,8 +513,8 @@ func (s *SkillService) PublishSkill(skillName, version string, updateLatestLabel
 		params.Set("updateLatestLabel", "false")
 	}
 
-	publishURL := fmt.Sprintf("http://%s/nacos/v3/admin/ai/skills/publish?%s",
-		s.client.ServerAddr, params.Encode())
+	publishURL := fmt.Sprintf("%s/nacos/v3/admin/ai/skills/publish?%s",
+		s.client.BaseURL(), params.Encode())
 	req, err := s.client.NewAuthedRequest("POST", publishURL, nil)
 	if err != nil {
 		return err
@@ -560,8 +560,8 @@ func (s *SkillService) SubmitSkill(skillName, version string) error {
 		params.Set("version", version)
 	}
 
-	submitURL := fmt.Sprintf("http://%s/nacos/v3/admin/ai/skills/submit?%s",
-		s.client.ServerAddr, params.Encode())
+	submitURL := fmt.Sprintf("%s/nacos/v3/admin/ai/skills/submit?%s",
+		s.client.BaseURL(), params.Encode())
 	req, err := s.client.NewAuthedRequest("POST", submitURL, nil)
 	if err != nil {
 		return err
