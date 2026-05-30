@@ -536,11 +536,33 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+All pull requests are automatically tested via GitHub Actions (build + unit tests).
+
+## Release
+
+Releases are automated via GitHub Actions. To publish a new version:
+
+1. Update version numbers in `Makefile`, `package.json`, and `bin/cli.js`
+2. Commit and push to `main`
+3. Create and push a tag: `git tag v1.0.5 && git push origin v1.0.5`
+4. GitHub Actions will automatically:
+   - Cross-compile binaries for all platforms (linux/darwin/windows × amd64/arm64)
+   - Publish the npm package to `@nacos-group/cli`
+   - Create a GitHub Release with downloadable ZIP archives
+
+**Required secret**: `NPM_TOKEN` — an npm access token with publish permission for `@nacos-group/cli`, configured in the repository's Settings → Secrets → Actions.
+
 ## License
 
 MIT License
 
 ## Changelog
+
+### Next Release
+
+- Added GitHub Actions CI/CD: automatic testing on PRs and tag-triggered npm
+  publishing with cross-platform binary builds
+  ([#22](https://github.com/nacos-group/nacos-cli/issues/22))
 
 ### v1.0.4 (2026-05-08)
 
