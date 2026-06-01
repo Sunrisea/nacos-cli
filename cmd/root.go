@@ -113,6 +113,9 @@ Examples:
 					}
 					host = host[8:]
 				} else if strings.HasPrefix(lower, "http://") {
+					if scheme == "" {
+						scheme = "http"
+					}
 					host = host[7:]
 				}
 
@@ -190,13 +193,7 @@ Examples:
 		}
 
 		// Scheme resolution: command line > auto-detect from host > config file > env var > default (http)
-		// If --host contained a scheme prefix (e.g. "https://nacos.example.com"), extract it.
-		if scheme == "" && host != "" {
-			lower := strings.ToLower(host)
-			if strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "http://") {
-				// Already handled by serverAddr parsing above via net/url or manual prefix strip
-			}
-		}
+		// --scheme flag and --host prefix detection are already handled above.
 		if scheme == "" && fileConfig != nil && fileConfig.GetScheme() != "http" {
 			scheme = fileConfig.GetScheme()
 		}

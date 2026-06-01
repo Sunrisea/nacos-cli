@@ -97,12 +97,72 @@ func TestPersistentPreRunDoesNotAutoDetectStsHiclaw(t *testing.T) {
 	}
 }
 
+func TestSchemePriority_HttpHostOverridesProfileHttps(t *testing.T) {
+	resetRootConfigForTest(t)
+
+	// Simulate profile with scheme: https
+	dir := t.TempDir()
+	configFile = filepath.Join(dir, "local.conf")
+	if err := os.WriteFile(configFile, []byte("host: 10.0.0.1\nport: 8848\nscheme: https\n"), 0600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	// User explicitly passes --host http://nacos.example.com
+	host = "http://nacos.example.com"
+
+	rootCmd.PersistentPreRun(&cobra.Command{Use: "skill-list"}, nil)
+
+	// The explicit http:// prefix in --host should override profile's scheme: https
+	if scheme != "http" {
+		t.Fatalf("scheme = %q, want %q (--host http:// prefix should override profile scheme)", scheme, "http")
+	}
+	if serverAddr != "nacos.example.com:8848" {
+		t.Fatalf("serverAddr = %q, want %q", serverAddr, "nacos.example.com:8848")
+	}
+}
+
+func TestSchemePriority_HttpsHostOverridesEnv(t *testing.T) {
+	resetRootConfigForTest(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("NACOS_SCHEME", "http")
+
+	// User explicitly passes --host https://nacos.example.com
+	host = "https://nacos.example.com:443"
+
+	rootCmd.PersistentPreRun(&cobra.Command{Use: "skill-list"}, nil)
+
+	// The explicit https:// prefix in --host should override env NACOS_SCHEME=http
+	if scheme != "https" {
+		t.Fatalf("scheme = %q, want %q (--host https:// prefix should override env)", scheme, "https")
+	}
+	if serverAddr != "nacos.example.com:443" {
+		t.Fatalf("serverAddr = %q, want %q", serverAddr, "nacos.example.com:443")
+	}
+}
+
+func TestSchemePriority_ExplicitFlagOverridesHostPrefix(t *testing.T) {
+	resetRootConfigForTest(t)
+	t.Setenv("HOME", t.TempDir())
+
+	// --scheme flag takes highest priority, even over --host prefix
+	scheme = "http"
+	host = "https://nacos.example.com"
+
+	rootCmd.PersistentPreRun(&cobra.Command{Use: "skill-list"}, nil)
+
+	// --scheme flag wins over --host https:// prefix
+	if scheme != "http" {
+		t.Fatalf("scheme = %q, want %q (--scheme flag should override host prefix)", scheme, "http")
+	}
+}
+
 func resetRootConfigForTest(t *testing.T) {
 	t.Helper()
 
 	originalServerAddr := serverAddr
 	originalHost := host
 	originalPort := port
+	originalScheme := scheme
 	originalNamespace := namespace
 	originalAuthType := authType
 	originalUsername := username
@@ -119,6 +179,7 @@ func resetRootConfigForTest(t *testing.T) {
 	serverAddr = ""
 	host = ""
 	port = 0
+	scheme = ""
 	namespace = ""
 	authType = ""
 	username = ""
@@ -136,6 +197,7 @@ func resetRootConfigForTest(t *testing.T) {
 		serverAddr = originalServerAddr
 		host = originalHost
 		port = originalPort
+		scheme = originalScheme
 		namespace = originalNamespace
 		authType = originalAuthType
 		username = originalUsername

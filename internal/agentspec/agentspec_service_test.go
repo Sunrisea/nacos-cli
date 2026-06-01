@@ -167,6 +167,7 @@ func TestUploadAgentSpecZipPaths(t *testing.T) {
 		"test-ns",
 		client.AuthTypeNone,
 		"", "", "", "", "", "", "",
+		"http",
 	)
 	if err != nil {
 		t.Fatal(err)
