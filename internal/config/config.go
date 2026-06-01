@@ -22,7 +22,7 @@ const (
 type Config struct {
 	Host          string `yaml:"host"`
 	Port          int    `yaml:"port"`
-	Scheme        string `yaml:"scheme"` // http | https (default: http)
+	Scheme        string `yaml:"scheme"`   // http | https (default: http)
 	AuthType      string `yaml:"authType"` // nacos | aliyun | sts-hiclaw
 	Username      string `yaml:"username"`
 	Password      string `yaml:"password"`

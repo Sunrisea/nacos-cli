@@ -258,7 +258,7 @@ func TestUploadSkillZipPaths(t *testing.T) {
 	}
 
 	expectedPaths := map[string]bool{
-		"SKILL.md":                     false,
+		"SKILL.md":                      false,
 		"prompts/templates/default.txt": false,
 	}
 

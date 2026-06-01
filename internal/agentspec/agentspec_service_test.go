@@ -185,7 +185,7 @@ func TestUploadAgentSpecZipPaths(t *testing.T) {
 	}
 
 	expectedPaths := map[string]bool{
-		"AGENTSPEC.md":           false,
+		"AGENTSPEC.md":              false,
 		"resources/config/app.yaml": false,
 	}
 
