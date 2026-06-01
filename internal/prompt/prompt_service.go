@@ -26,26 +26,28 @@ func NewPromptService(nacosClient *client.NacosClient) *PromptService {
 type PromptListItem struct {
 	Name             string            `json:"name"`
 	PromptKey        string            `json:"promptKey"`
-	Description      string            `json:"description"`
+	Description      *string           `json:"description"`
 	Owner            string            `json:"owner,omitempty"`
 	Enable           bool              `json:"enable"`
-	BizTags          string            `json:"bizTags,omitempty"`
+	BizTags          []string          `json:"bizTags,omitempty"`
+	BizTagsStr       *string           `json:"bizTagsStr,omitempty"`
 	Labels           map[string]string `json:"labels,omitempty"`
+	LatestVersion    string            `json:"latestVersion,omitempty"`
 	EditingVersion   string            `json:"editingVersion,omitempty"`
 	ReviewingVersion string            `json:"reviewingVersion,omitempty"`
 	OnlineCnt        *int              `json:"onlineCnt,omitempty"`
 	DownloadCount    *int64            `json:"downloadCount,omitempty"`
-	UpdateTime       *int64            `json:"updateTime,omitempty"`
+	GmtModified      *int64            `json:"gmtModified,omitempty"`
 }
 
 // PromptVersionSummary represents a version in the governance detail.
 type PromptVersionSummary struct {
+	PromptKey           string `json:"promptKey,omitempty"`
 	Version             string `json:"version"`
 	Status              string `json:"status"`
-	Author              string `json:"author,omitempty"`
-	CommitMsg           string `json:"commitMsg,omitempty"`
-	CreateTime          *int64 `json:"createTime,omitempty"`
-	UpdateTime          *int64 `json:"updateTime,omitempty"`
+	SrcUser             string `json:"srcUser,omitempty"`
+	CommitMsg           *string `json:"commitMsg,omitempty"`
+	GmtModified         *int64 `json:"gmtModified,omitempty"`
 	PublishPipelineInfo  string `json:"publishPipelineInfo,omitempty"`
 	DownloadCount       *int64 `json:"downloadCount,omitempty"`
 }
@@ -53,7 +55,8 @@ type PromptVersionSummary struct {
 // PromptDetail represents the governance detail (meta + versions).
 type PromptDetail struct {
 	PromptListItem
-	Versions []PromptVersionSummary `json:"versions,omitempty"`
+	Versions       []string               `json:"versions,omitempty"`
+	VersionDetails []PromptVersionSummary  `json:"versionDetails,omitempty"`
 }
 
 // PromptVersionInfo represents a specific prompt version's content.
@@ -104,7 +107,7 @@ func (s *PromptService) ListPrompts(promptKey string, pageNo, pageSize int) ([]P
 
 	if promptKey != "" {
 		params.Set("promptKey", promptKey)
-		params.Set("search", "accurate")
+		params.Set("search", "blur")
 	}
 
 	listURL := fmt.Sprintf("%s/nacos/v3/admin/ai/prompt/list?%s",

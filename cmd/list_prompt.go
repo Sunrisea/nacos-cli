@@ -101,8 +101,8 @@ func printPromptListItem(idx int, p prompt.PromptListItem) {
 	if key == "" {
 		key = p.Name
 	}
-	if p.Description != "" {
-		desc := truncateDesc(p.Description, defaultDescLimit)
+	if p.Description != nil && *p.Description != "" {
+		desc := truncateDesc(*p.Description, defaultDescLimit)
 		fmt.Printf("%3d. %s - %s\n", idx, key, desc)
 	} else {
 		fmt.Printf("%3d. %s\n", idx, key)
@@ -122,14 +122,14 @@ func printPromptListItem(idx int, p prompt.PromptListItem) {
 
 	// Line 3: governance metadata.
 	var meta []string
-	if p.BizTags != "" {
-		meta = append(meta, "bizTags="+p.BizTags)
+	if len(p.BizTags) > 0 {
+		meta = append(meta, "bizTags="+strings.Join(p.BizTags, ","))
 	}
 	if p.Owner != "" {
 		meta = append(meta, "owner="+p.Owner)
 	}
-	if p.UpdateTime != nil && *p.UpdateTime > 0 {
-		meta = append(meta, "updated="+time.UnixMilli(*p.UpdateTime).Format("2006-01-02 15:04:05"))
+	if p.GmtModified != nil && *p.GmtModified > 0 {
+		meta = append(meta, "updated="+time.UnixMilli(*p.GmtModified).Format("2006-01-02 15:04:05"))
 	}
 	if p.DownloadCount != nil && *p.DownloadCount > 0 {
 		meta = append(meta, fmt.Sprintf("downloads=%d", *p.DownloadCount))

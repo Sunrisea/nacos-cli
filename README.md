@@ -379,7 +379,7 @@ Prompts follow a similar lifecycle to skills but use text templates instead of Z
 # CLI mode (pretty output by default)
 nacos-cli prompt-list -s 127.0.0.1:8848 -u nacos -p nacos
 
-# With filters
+# Fuzzy search by name
 nacos-cli prompt-list --name my-prompt --page 1 --size 20
 
 # Machine-readable output for scripts
@@ -680,6 +680,10 @@ MIT License
 - Added prompt management commands: `prompt-list`, `prompt-describe`, `prompt-get`,
   `prompt-draft`, `prompt-review`, `prompt-release` — full lifecycle support for
   Nacos AI prompt templates (draft → review → release)
+- Prompt data models aligned with actual server API responses (bizTags as array,
+  nullable description, gmtModified timestamp, versionDetails structure)
+- `prompt-list --name` uses fuzzy search for convenience
+- `prompt-draft` auto-detects whether to create or update based on editing state
 - Fixed `skill-upload` and `agentspec-upload` creating ZIP archives with an
   extra directory prefix, causing server-side extraction failures
   ([#46](https://github.com/nacos-group/nacos-cli/issues/46))

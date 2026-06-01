@@ -11,6 +11,8 @@ import (
 	"github.com/nacos-group/nacos-cli/internal/client"
 )
 
+func strPtr(s string) *string { return &s }
+
 func newTestNacosClient(serverURL string) (*client.NacosClient, error) {
 	return client.NewNacosClient(
 		strings.TrimPrefix(serverURL, "http://"),
@@ -54,7 +56,7 @@ func TestListPrompts(t *testing.T) {
 			PageNumber:     1,
 			PagesAvailable: 1,
 			PageItems: []PromptListItem{
-				{PromptKey: "test-prompt", Description: "A test prompt"},
+				{PromptKey: "test-prompt", Description: strPtr("A test prompt")},
 			},
 		}
 		data, _ := json.Marshal(listData)
@@ -88,8 +90,8 @@ func TestListPromptsWithFilter(t *testing.T) {
 		if got := r.URL.Query().Get("promptKey"); got != "my-prompt" {
 			t.Fatalf("promptKey = %s, want my-prompt", got)
 		}
-		if got := r.URL.Query().Get("search"); got != "accurate" {
-			t.Fatalf("search = %s, want accurate", got)
+		if got := r.URL.Query().Get("search"); got != "blur" {
+			t.Fatalf("search = %s, want blur", got)
 		}
 		resp := V3Response{Code: 0, Message: "success"}
 		listData := PromptListResponse{TotalCount: 0, PageItems: []PromptListItem{}}
@@ -125,10 +127,10 @@ func TestDescribePrompt(t *testing.T) {
 		detail := PromptDetail{
 			PromptListItem: PromptListItem{
 				PromptKey:      "test-prompt",
-				Description:    "desc",
+				Description:    strPtr("desc"),
 				EditingVersion: "0.0.1",
 			},
-			Versions: []PromptVersionSummary{
+			VersionDetails: []PromptVersionSummary{
 				{Version: "0.0.1", Status: "draft"},
 			},
 		}
@@ -151,7 +153,7 @@ func TestDescribePrompt(t *testing.T) {
 	if d.EditingVersion != "0.0.1" {
 		t.Fatalf("editingVersion = %s, want 0.0.1", d.EditingVersion)
 	}
-	if len(d.Versions) != 1 || d.Versions[0].Status != "draft" {
+	if len(d.VersionDetails) != 1 || d.VersionDetails[0].Status != "draft" {
 		t.Fatalf("unexpected versions: %+v", d.Versions)
 	}
 }
@@ -383,5 +385,230 @@ func TestPublishPromptNoUpdateLatest(t *testing.T) {
 	err = NewPromptService(nacosClient).Publish("test-prompt", "1.0.0", false)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetPromptWithLabel(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/nacos/v3/client/ai/prompt" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("label"); got != "stable" {
+			t.Fatalf("label = %s, want stable", got)
+		}
+		// version should not be set when label is specified
+		if got := r.URL.Query().Get("version"); got != "" {
+			t.Fatalf("version should be empty, got %s", got)
+		}
+
+		p := ClientPrompt{
+			PromptKey: "test-prompt",
+			Version:   "2.0.0",
+			Template:  "Stable template",
+		}
+		resp := V3Response{Code: 0, Message: "success"}
+		data, _ := json.Marshal(p)
+		resp.Data = data
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	nacosClient, err := newTestNacosClient(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := NewPromptService(nacosClient).GetPrompt("test-prompt", "", "stable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Version != "2.0.0" {
+		t.Fatalf("version = %s, want 2.0.0", p.Version)
+	}
+	if p.Template != "Stable template" {
+		t.Fatalf("template = %s, want Stable template", p.Template)
+	}
+}
+
+func TestListPromptsEmpty(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := V3Response{Code: 0, Message: "success"}
+		listData := PromptListResponse{TotalCount: 0, PageItems: []PromptListItem{}}
+		data, _ := json.Marshal(listData)
+		resp.Data = data
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	nacosClient, err := newTestNacosClient(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	items, total, err := NewPromptService(nacosClient).ListPrompts("", 1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 0 {
+		t.Fatalf("totalCount = %d, want 0", total)
+	}
+	if len(items) != 0 {
+		t.Fatalf("expected 0 items, got %d", len(items))
+	}
+}
+
+func TestDraftWithVariablesAndBizTags(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/nacos/v3/admin/ai/prompt/governance":
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"code": 404, "message": "not found",
+			})
+		case "/nacos/v3/admin/ai/prompt/draft":
+			if r.Method != http.MethodPost {
+				t.Fatalf("method = %s, want POST", r.Method)
+			}
+			body, _ := io.ReadAll(r.Body)
+			params := string(body)
+			if !strings.Contains(params, "variables=") {
+				t.Fatalf("missing variables in body: %s", params)
+			}
+			if !strings.Contains(params, "bizTags=test") {
+				t.Fatalf("missing bizTags in body: %s", params)
+			}
+			if !strings.Contains(params, "description=Test+desc") {
+				t.Fatalf("missing description in body: %s", params)
+			}
+			resp := V3Response{Code: 0, Message: "success"}
+			_ = json.NewEncoder(w).Encode(resp)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	nacosClient, err := newTestNacosClient(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vars := `[{"name":"domain","defaultValue":"coding"}]`
+	err = NewPromptService(nacosClient).Draft("new-prompt", "Hello {{domain}}", vars, "init", "Test desc", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSubmitPromptWithVersion(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/nacos/v3/admin/ai/prompt/submit" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		body, _ := io.ReadAll(r.Body)
+		params := string(body)
+		if !strings.Contains(params, "version=0.0.2") {
+			t.Fatalf("missing version=0.0.2 in body: %s", params)
+		}
+		resp := V3Response{Code: 0, Message: "success"}
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	nacosClient, err := newTestNacosClient(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = NewPromptService(nacosClient).Submit("test-prompt", "0.0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDescribePromptNotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"code": 404, "message": "prompt not found",
+		})
+	}))
+	defer server.Close()
+
+	nacosClient, err := newTestNacosClient(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = NewPromptService(nacosClient).DescribePrompt("nonexistent")
+	if err == nil {
+		t.Fatal("expected error for 404, got nil")
+	}
+}
+
+func TestGetPromptVersionPriorityOverLabel(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// When both version and label are provided, version should take priority
+		if got := r.URL.Query().Get("version"); got != "1.0.0" {
+			t.Fatalf("version = %s, want 1.0.0", got)
+		}
+		// label should still be sent (server decides priority)
+		p := ClientPrompt{
+			PromptKey: "test-prompt",
+			Version:   "1.0.0",
+			Template:  "Versioned template",
+		}
+		resp := V3Response{Code: 0, Message: "success"}
+		data, _ := json.Marshal(p)
+		resp.Data = data
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	nacosClient, err := newTestNacosClient(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := NewPromptService(nacosClient).GetPrompt("test-prompt", "1.0.0", "latest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Template != "Versioned template" {
+		t.Fatalf("template = %s, want Versioned template", p.Template)
+	}
+}
+
+func TestDraftHTTPErrorHandling(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/nacos/v3/admin/ai/prompt/governance":
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"code": 404, "message": "not found",
+			})
+		case "/nacos/v3/admin/ai/prompt/draft":
+			// Simulate server error
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"code": 409, "message": "draft already exists",
+			})
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	nacosClient, err := newTestNacosClient(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = NewPromptService(nacosClient).Draft("test-prompt", "Hello!", "", "init", "", "")
+	if err == nil {
+		t.Fatal("expected error for 409, got nil")
+	}
+	if !strings.Contains(err.Error(), "409") && !strings.Contains(err.Error(), "draft already exists") {
+		t.Fatalf("error should mention 409 or conflict: %v", err)
 	}
 }

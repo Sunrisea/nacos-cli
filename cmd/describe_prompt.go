@@ -64,8 +64,8 @@ func renderPromptDetailPretty(d *prompt.PromptDetail) {
 	}
 	fmt.Printf("Prompt: %s\n", key)
 	fmt.Println(separator)
-	if d.Description != "" {
-		fmt.Printf("  description: %s\n", d.Description)
+	if d.Description != nil && *d.Description != "" {
+		fmt.Printf("  description: %s\n", *d.Description)
 	}
 
 	// Governance metadata block.
@@ -81,14 +81,14 @@ func renderPromptDetailPretty(d *prompt.PromptDetail) {
 	)
 
 	var meta []string
-	if d.BizTags != "" {
-		meta = append(meta, "bizTags="+d.BizTags)
+	if len(d.BizTags) > 0 {
+		meta = append(meta, "bizTags="+strings.Join(d.BizTags, ","))
 	}
 	if d.Owner != "" {
 		meta = append(meta, "owner="+d.Owner)
 	}
-	if d.UpdateTime != nil && *d.UpdateTime > 0 {
-		meta = append(meta, "updated="+time.UnixMilli(*d.UpdateTime).Format("2006-01-02 15:04:05"))
+	if d.GmtModified != nil && *d.GmtModified > 0 {
+		meta = append(meta, "updated="+time.UnixMilli(*d.GmtModified).Format("2006-01-02 15:04:05"))
 	}
 	if d.DownloadCount != nil && *d.DownloadCount > 0 {
 		meta = append(meta, fmt.Sprintf("downloads=%d", *d.DownloadCount))
@@ -103,12 +103,12 @@ func renderPromptDetailPretty(d *prompt.PromptDetail) {
 	// Version table.
 	fmt.Println()
 	fmt.Println("Versions:")
-	if len(d.Versions) == 0 {
+	if len(d.VersionDetails) == 0 {
 		fmt.Println("  (none)")
 		return
 	}
 
-	versions := sortedPromptVersions(d.Versions)
+	versions := sortedPromptVersions(d.VersionDetails)
 	widths := computePromptVersionColumnWidths(versions)
 	header := fmt.Sprintf("  %-*s  %-*s  %-*s  %-*s  %s",
 		widths.version, "VERSION",
@@ -119,12 +119,16 @@ func renderPromptDetailPretty(d *prompt.PromptDetail) {
 	fmt.Println(header)
 	fmt.Println("  " + util.SeparatorLine(len(header)-2, asciiMode))
 	for _, v := range versions {
+		commitMsg := ""
+		if v.CommitMsg != nil {
+			commitMsg = *v.CommitMsg
+		}
 		fmt.Printf("  %-*s  %-*s  %-*s  %-*s  %s\n",
 			widths.version, v.Version,
 			widths.status, dashIfEmpty(v.Status),
-			widths.author, dashIfEmpty(v.Author),
-			widths.updated, promptFormatTimestamp(v.UpdateTime),
-			truncateDesc(strings.ReplaceAll(v.CommitMsg, "\n", " "), 60),
+			widths.author, dashIfEmpty(v.SrcUser),
+			widths.updated, promptFormatTimestamp(v.GmtModified),
+			truncateDesc(strings.ReplaceAll(commitMsg, "\n", " "), 60),
 		)
 	}
 }
@@ -145,7 +149,7 @@ func computePromptVersionColumnWidths(versions []prompt.PromptVersionSummary) pr
 		if n := len(v.Status); n > w.status {
 			w.status = n
 		}
-		if n := len(v.Author); n > w.author {
+		if n := len(v.SrcUser); n > w.author {
 			w.author = n
 		}
 	}
@@ -167,11 +171,8 @@ func sortedPromptVersions(versions []prompt.PromptVersionSummary) []prompt.Promp
 }
 
 func promptVersionSortKey(v prompt.PromptVersionSummary) int64 {
-	if v.UpdateTime != nil {
-		return *v.UpdateTime
-	}
-	if v.CreateTime != nil {
-		return *v.CreateTime
+	if v.GmtModified != nil {
+		return *v.GmtModified
 	}
 	return 0
 }
