@@ -143,5 +143,3 @@ func printPromptListItem(idx int, p prompt.PromptListItem) {
 		fmt.Println("     labels: " + strings.Join(extra, ", "))
 	}
 }
-
-

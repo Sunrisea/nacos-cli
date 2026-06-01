@@ -72,7 +72,7 @@ func savePromptToFile(p *prompt.ClientPrompt, outputPath string) {
 	// Save variables as a separate JSON file if present
 	if len(p.Variables) > 0 && string(p.Variables) != "null" {
 		varsPath := outputPath + ".variables.json"
-		prettyVars, err := json.MarshalIndent(json.RawMessage(p.Variables), "", "  ")
+		prettyVars, err := json.MarshalIndent(p.Variables, "", "  ")
 		if err == nil {
 			if err := os.WriteFile(varsPath, prettyVars, 0644); err == nil {
 				fmt.Printf("  Variables: %s\n", varsPath)

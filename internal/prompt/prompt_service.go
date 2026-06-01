@@ -42,33 +42,33 @@ type PromptListItem struct {
 
 // PromptVersionSummary represents a version in the governance detail.
 type PromptVersionSummary struct {
-	PromptKey           string `json:"promptKey,omitempty"`
-	Version             string `json:"version"`
-	Status              string `json:"status"`
-	SrcUser             string `json:"srcUser,omitempty"`
+	PromptKey           string  `json:"promptKey,omitempty"`
+	Version             string  `json:"version"`
+	Status              string  `json:"status"`
+	SrcUser             string  `json:"srcUser,omitempty"`
 	CommitMsg           *string `json:"commitMsg,omitempty"`
-	GmtModified         *int64 `json:"gmtModified,omitempty"`
-	PublishPipelineInfo  string `json:"publishPipelineInfo,omitempty"`
-	DownloadCount       *int64 `json:"downloadCount,omitempty"`
+	GmtModified         *int64  `json:"gmtModified,omitempty"`
+	PublishPipelineInfo string  `json:"publishPipelineInfo,omitempty"`
+	DownloadCount       *int64  `json:"downloadCount,omitempty"`
 }
 
 // PromptDetail represents the governance detail (meta + versions).
 type PromptDetail struct {
 	PromptListItem
 	Versions       []string               `json:"versions,omitempty"`
-	VersionDetails []PromptVersionSummary  `json:"versionDetails,omitempty"`
+	VersionDetails []PromptVersionSummary `json:"versionDetails,omitempty"`
 }
 
 // PromptVersionInfo represents a specific prompt version's content.
 type PromptVersionInfo struct {
-	PromptKey   string           `json:"promptKey"`
-	Version     string           `json:"version"`
-	Template    string           `json:"template"`
-	Variables   json.RawMessage  `json:"variables,omitempty"`
-	Status      string           `json:"status,omitempty"`
-	CommitMsg   string           `json:"commitMsg,omitempty"`
-	CreateTime  *int64           `json:"createTime,omitempty"`
-	UpdateTime  *int64           `json:"updateTime,omitempty"`
+	PromptKey  string          `json:"promptKey"`
+	Version    string          `json:"version"`
+	Template   string          `json:"template"`
+	Variables  json.RawMessage `json:"variables,omitempty"`
+	Status     string          `json:"status,omitempty"`
+	CommitMsg  string          `json:"commitMsg,omitempty"`
+	CreateTime *int64          `json:"createTime,omitempty"`
+	UpdateTime *int64          `json:"updateTime,omitempty"`
 }
 
 // ClientPrompt represents the client API response.
@@ -440,5 +440,3 @@ func (s *PromptService) Publish(promptKey, version string, updateLatestLabel boo
 	}
 	return nil
 }
-
-
