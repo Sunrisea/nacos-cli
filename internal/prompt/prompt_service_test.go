@@ -236,7 +236,7 @@ func TestDraftCreatesNewPrompt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = NewPromptService(nacosClient).Draft("test-prompt", "Hello!", "", "init", "A test", "", "")
+	err = NewPromptService(nacosClient).Draft("test-prompt", "Hello!", "", "init", "A test", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,7 +280,7 @@ func TestDraftUpdatesExistingDraft(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = NewPromptService(nacosClient).Draft("test-prompt", "Updated!", "", "update", "", "", "")
+	err = NewPromptService(nacosClient).Draft("test-prompt", "Updated!", "", "update", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -494,7 +494,7 @@ func TestDraftWithVariablesAndBizTags(t *testing.T) {
 	}
 
 	vars := `[{"name":"domain","defaultValue":"coding"}]`
-	err = NewPromptService(nacosClient).Draft("new-prompt", "Hello {{domain}}", vars, "init", "Test desc", "test", "")
+	err = NewPromptService(nacosClient).Draft("new-prompt", "Hello {{domain}}", vars, "init", "Test desc", "test", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -604,7 +604,7 @@ func TestDraftHTTPErrorHandling(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = NewPromptService(nacosClient).Draft("test-prompt", "Hello!", "", "init", "", "", "")
+	err = NewPromptService(nacosClient).Draft("test-prompt", "Hello!", "", "init", "", "", "", "")
 	if err == nil {
 		t.Fatal("expected error for 409, got nil")
 	}
@@ -647,8 +647,88 @@ func TestDraftWithTargetVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = NewPromptService(nacosClient).Draft("versioned-prompt", "Hello!", "", "init", "", "", "1.0.0")
+	err = NewPromptService(nacosClient).Draft("versioned-prompt", "Hello!", "", "init", "", "", "1.0.0", "")
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDraftWithBasedOnVersion(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/nacos/v3/admin/ai/prompt/governance":
+			// Prompt exists but no editing version (all versions are online/published)
+			detail := PromptDetail{
+				PromptListItem: PromptListItem{
+					PromptKey:      "fork-prompt",
+					EditingVersion: "", // no editing
+				},
+			}
+			resp := V3Response{Code: 0, Message: "success"}
+			data, _ := json.Marshal(detail)
+			resp.Data = data
+			_ = json.NewEncoder(w).Encode(resp)
+		case "/nacos/v3/admin/ai/prompt/draft":
+			if r.Method != http.MethodPost {
+				t.Fatalf("method = %s, want POST", r.Method)
+			}
+			body, _ := io.ReadAll(r.Body)
+			params := string(body)
+			if !strings.Contains(params, "basedOnVersion=1.0.0") {
+				t.Fatalf("missing basedOnVersion=1.0.0 in body: %s", params)
+			}
+			if !strings.Contains(params, "promptKey=fork-prompt") {
+				t.Fatalf("missing promptKey in body: %s", params)
+			}
+			resp := V3Response{Code: 0, Message: "success"}
+			_ = json.NewEncoder(w).Encode(resp)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	nacosClient, err := newTestNacosClient(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = NewPromptService(nacosClient).Draft("fork-prompt", "Forked!", "", "fork from v1", "", "", "", "1.0.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDraftBasedOnVersionConflictWithEditing(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Prompt exists WITH an editing version
+		detail := PromptDetail{
+			PromptListItem: PromptListItem{
+				PromptKey:      "conflict-prompt",
+				EditingVersion: "0.0.2",
+			},
+		}
+		resp := V3Response{Code: 0, Message: "success"}
+		data, _ := json.Marshal(detail)
+		resp.Data = data
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	nacosClient, err := newTestNacosClient(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Should return error because editing draft exists and basedOnVersion is set
+	err = NewPromptService(nacosClient).Draft("conflict-prompt", "New!", "", "fork", "", "", "", "1.0.0")
+	if err == nil {
+		t.Fatal("expected error when basedOnVersion conflicts with existing editing draft")
+	}
+	if !strings.Contains(err.Error(), "cannot fork") {
+		t.Fatalf("error should mention 'cannot fork': %v", err)
+	}
+	if !strings.Contains(err.Error(), "0.0.2") {
+		t.Fatalf("error should mention editing version '0.0.2': %v", err)
 	}
 }

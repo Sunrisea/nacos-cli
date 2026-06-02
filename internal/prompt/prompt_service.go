@@ -244,25 +244,34 @@ func (s *PromptService) GetPrompt(promptKey, version, label string) (*ClientProm
 
 // Draft creates or updates a prompt draft. It first checks if an editing version
 // exists; if so, it updates; otherwise it creates a new draft.
-func (s *PromptService) Draft(promptKey, template, variables, commitMsg, description, bizTags, targetVersion string) error {
+// If basedOnVersion is specified but an editing draft already exists, it returns
+// an error because the server would reject the fork with 409 CONFLICT.
+func (s *PromptService) Draft(promptKey, template, variables, commitMsg, description, bizTags, targetVersion, basedOnVersion string) error {
 	if err := s.client.EnsureTokenValid(); err != nil {
 		return err
 	}
 
 	// Check if editing version exists
 	hasEditing := false
+	editingVer := ""
 	detail, err := s.DescribePrompt(promptKey)
 	if err == nil && detail != nil && detail.EditingVersion != "" {
 		hasEditing = true
+		editingVer = detail.EditingVersion
 	}
 
 	if hasEditing {
+		if basedOnVersion != "" {
+			return fmt.Errorf("cannot fork from version %s: an editing draft (%s) already exists for prompt '%s'. "+
+				"Submit or discard the current draft first, then retry with --based-on-version",
+				basedOnVersion, editingVer, promptKey)
+		}
 		return s.updateDraft(promptKey, template, variables, commitMsg)
 	}
-	return s.createDraft(promptKey, template, variables, commitMsg, description, bizTags, targetVersion)
+	return s.createDraft(promptKey, template, variables, commitMsg, description, bizTags, targetVersion, basedOnVersion)
 }
 
-func (s *PromptService) createDraft(promptKey, template, variables, commitMsg, description, bizTags, targetVersion string) error {
+func (s *PromptService) createDraft(promptKey, template, variables, commitMsg, description, bizTags, targetVersion, basedOnVersion string) error {
 	params := url.Values{}
 	params.Set("namespaceId", s.client.Namespace)
 	params.Set("promptKey", promptKey)
@@ -281,6 +290,9 @@ func (s *PromptService) createDraft(promptKey, template, variables, commitMsg, d
 	}
 	if targetVersion != "" {
 		params.Set("targetVersion", targetVersion)
+	}
+	if basedOnVersion != "" {
+		params.Set("basedOnVersion", basedOnVersion)
 	}
 
 	apiURL := fmt.Sprintf("%s/nacos/v3/admin/ai/prompt/draft", s.client.BaseURL())

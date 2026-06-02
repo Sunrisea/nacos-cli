@@ -438,6 +438,12 @@ nacos-cli prompt-draft my-prompt -f ./tpl.md --description "greeting prompt" --b
 # Specify target version for the new draft
 nacos-cli prompt-draft my-prompt -f ./tpl.md --target-version 1.0.0
 
+# Fork from an existing published version (server auto-increments version)
+nacos-cli prompt-draft my-prompt -f ./tpl.md --based-on-version 1.0.0
+
+# Fork and set explicit target version
+nacos-cli prompt-draft my-prompt -f ./tpl.md --based-on-version 1.0.0 --target-version 2.0.0
+
 # Terminal mode
 nacos> prompt-draft my-prompt -f ./template.md
 ```

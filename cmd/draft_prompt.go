@@ -17,6 +17,7 @@ var (
 	promptDraftDescription   string
 	promptDraftBizTags       string
 	promptDraftTargetVersion string
+	promptDraftBasedOn       string
 )
 
 var draftPromptCmd = &cobra.Command{
@@ -35,7 +36,8 @@ var draftPromptCmd = &cobra.Command{
 
 		fmt.Printf("Creating/updating prompt draft: %s...\n", promptKey)
 		err := promptService.Draft(promptKey, template, promptDraftVariables,
-			promptDraftMessage, promptDraftDescription, promptDraftBizTags, promptDraftTargetVersion)
+			promptDraftMessage, promptDraftDescription, promptDraftBizTags,
+			promptDraftTargetVersion, promptDraftBasedOn)
 		checkError(err)
 
 		fmt.Printf("Prompt draft saved successfully!\n")
@@ -50,6 +52,7 @@ func init() {
 	draftPromptCmd.Flags().StringVar(&promptDraftDescription, "description", "", "Prompt description (used when creating new prompt)")
 	draftPromptCmd.Flags().StringVar(&promptDraftBizTags, "biz-tags", "", "Business tags (used when creating new prompt)")
 	draftPromptCmd.Flags().StringVar(&promptDraftTargetVersion, "target-version", "", "Target version for the new draft (e.g. 1.0.0)")
+	draftPromptCmd.Flags().StringVar(&promptDraftBasedOn, "based-on-version", "", "Fork from an existing version (e.g. 1.0.0)")
 	rootCmd.AddCommand(draftPromptCmd)
 }
 
