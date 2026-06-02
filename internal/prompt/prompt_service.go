@@ -244,7 +244,7 @@ func (s *PromptService) GetPrompt(promptKey, version, label string) (*ClientProm
 
 // Draft creates or updates a prompt draft. It first checks if an editing version
 // exists; if so, it updates; otherwise it creates a new draft.
-func (s *PromptService) Draft(promptKey, template, variables, commitMsg, description, bizTags string) error {
+func (s *PromptService) Draft(promptKey, template, variables, commitMsg, description, bizTags, targetVersion string) error {
 	if err := s.client.EnsureTokenValid(); err != nil {
 		return err
 	}
@@ -259,10 +259,10 @@ func (s *PromptService) Draft(promptKey, template, variables, commitMsg, descrip
 	if hasEditing {
 		return s.updateDraft(promptKey, template, variables, commitMsg)
 	}
-	return s.createDraft(promptKey, template, variables, commitMsg, description, bizTags)
+	return s.createDraft(promptKey, template, variables, commitMsg, description, bizTags, targetVersion)
 }
 
-func (s *PromptService) createDraft(promptKey, template, variables, commitMsg, description, bizTags string) error {
+func (s *PromptService) createDraft(promptKey, template, variables, commitMsg, description, bizTags, targetVersion string) error {
 	params := url.Values{}
 	params.Set("namespaceId", s.client.Namespace)
 	params.Set("promptKey", promptKey)
@@ -278,6 +278,9 @@ func (s *PromptService) createDraft(promptKey, template, variables, commitMsg, d
 	}
 	if bizTags != "" {
 		params.Set("bizTags", bizTags)
+	}
+	if targetVersion != "" {
+		params.Set("targetVersion", targetVersion)
 	}
 
 	apiURL := fmt.Sprintf("%s/nacos/v3/admin/ai/prompt/draft", s.client.BaseURL())

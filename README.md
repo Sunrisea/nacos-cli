@@ -435,6 +435,9 @@ nacos-cli prompt-draft my-prompt -f ./tpl.md --variables '[{"name":"topic"}]' --
 # With description and biz-tags (used only on first creation)
 nacos-cli prompt-draft my-prompt -f ./tpl.md --description "greeting prompt" --biz-tags "retail,finance"
 
+# Specify target version for the new draft
+nacos-cli prompt-draft my-prompt -f ./tpl.md --target-version 1.0.0
+
 # Terminal mode
 nacos> prompt-draft my-prompt -f ./template.md
 ```

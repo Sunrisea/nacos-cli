@@ -236,7 +236,7 @@ func TestDraftCreatesNewPrompt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = NewPromptService(nacosClient).Draft("test-prompt", "Hello!", "", "init", "A test", "")
+	err = NewPromptService(nacosClient).Draft("test-prompt", "Hello!", "", "init", "A test", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,7 +280,7 @@ func TestDraftUpdatesExistingDraft(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = NewPromptService(nacosClient).Draft("test-prompt", "Updated!", "", "update", "", "")
+	err = NewPromptService(nacosClient).Draft("test-prompt", "Updated!", "", "update", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -494,7 +494,7 @@ func TestDraftWithVariablesAndBizTags(t *testing.T) {
 	}
 
 	vars := `[{"name":"domain","defaultValue":"coding"}]`
-	err = NewPromptService(nacosClient).Draft("new-prompt", "Hello {{domain}}", vars, "init", "Test desc", "test")
+	err = NewPromptService(nacosClient).Draft("new-prompt", "Hello {{domain}}", vars, "init", "Test desc", "test", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -604,11 +604,51 @@ func TestDraftHTTPErrorHandling(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = NewPromptService(nacosClient).Draft("test-prompt", "Hello!", "", "init", "", "")
+	err = NewPromptService(nacosClient).Draft("test-prompt", "Hello!", "", "init", "", "", "")
 	if err == nil {
 		t.Fatal("expected error for 409, got nil")
 	}
 	if !strings.Contains(err.Error(), "409") && !strings.Contains(err.Error(), "draft already exists") {
 		t.Fatalf("error should mention 409 or conflict: %v", err)
+	}
+}
+
+func TestDraftWithTargetVersion(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/nacos/v3/admin/ai/prompt/governance":
+			// Prompt doesn't exist → triggers create path
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"code": 404, "message": "not found",
+			})
+		case "/nacos/v3/admin/ai/prompt/draft":
+			if r.Method != http.MethodPost {
+				t.Fatalf("method = %s, want POST", r.Method)
+			}
+			body, _ := io.ReadAll(r.Body)
+			params := string(body)
+			if !strings.Contains(params, "targetVersion=1.0.0") {
+				t.Fatalf("missing targetVersion=1.0.0 in body: %s", params)
+			}
+			if !strings.Contains(params, "promptKey=versioned-prompt") {
+				t.Fatalf("missing promptKey in body: %s", params)
+			}
+			resp := V3Response{Code: 0, Message: "success"}
+			_ = json.NewEncoder(w).Encode(resp)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	nacosClient, err := newTestNacosClient(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = NewPromptService(nacosClient).Draft("versioned-prompt", "Hello!", "", "init", "", "", "1.0.0")
+	if err != nil {
+		t.Fatal(err)
 	}
 }
