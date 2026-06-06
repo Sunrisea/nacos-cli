@@ -348,9 +348,12 @@ func (c *NacosClient) doWithStsRetry(build func() (*resty.Response, error)) (*re
 // fetchStsCredentials calls the STS URL to obtain temporary AK/SK/SecurityToken
 func (c *NacosClient) fetchStsCredentials() error {
 	fmt.Fprintf(os.Stderr, "[info] sts-hiclaw: fetching STS credentials from %s\n", c.StsURL)
-	resp, err := c.httpClient.R().
-		SetHeader("Authorization", "Bearer "+c.StsAuthToken).
-		Post(c.StsURL)
+	req := c.httpClient.R().
+		SetHeader("Authorization", "Bearer "+c.StsAuthToken)
+	if clusterID := os.Getenv("HICLAW_CLUSTER_ID"); clusterID != "" {
+		req.SetHeader("X-HiClaw-Cluster-ID", clusterID)
+	}
+	resp, err := req.Post(c.StsURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[warn] sts-hiclaw: STS request failed: %v\n", err)
 		return fmt.Errorf("request STS URL failed: %w", err)

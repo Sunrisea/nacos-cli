@@ -1,6 +1,8 @@
 package client
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -94,5 +96,38 @@ func TestNewNacosClientDefaultScheme(t *testing.T) {
 	}
 	if c.BaseURL() != "http://localhost:8848" {
 		t.Errorf("BaseURL() = %q, want %q", c.BaseURL(), "http://localhost:8848")
+	}
+}
+
+func TestFetchStsCredentialsSendsClusterIDHeader(t *testing.T) {
+	t.Setenv("HICLAW_CLUSTER_ID", "cluster-123")
+
+	stsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer auth-token" {
+			t.Fatalf("Authorization header = %q, want %q", got, "Bearer auth-token")
+		}
+		if got := r.Header.Get("X-HiClaw-Cluster-ID"); got != "cluster-123" {
+			t.Fatalf("X-HiClaw-Cluster-ID header = %q, want %q", got, "cluster-123")
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_key_id":"ak","access_key_secret":"sk","security_token":"token","expires_in_sec":600}`))
+	}))
+	defer stsServer.Close()
+
+	c, err := NewNacosClient(
+		"localhost:8848",
+		"public",
+		AuthTypeStsToken,
+		"", "", "", "", "",
+		stsServer.URL,
+		"auth-token",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("NewNacosClient() error = %v", err)
+	}
+	if c.AccessKey != "ak" || c.SecretKey != "sk" || c.SecurityToken != "token" {
+		t.Fatalf("STS credentials = (%q, %q, %q), want (ak, sk, token)", c.AccessKey, c.SecretKey, c.SecurityToken)
 	}
 }
